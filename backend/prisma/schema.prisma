@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  MENTOR
+  HOD
+  VERIFIER
+  ADMIN
+}
+
+enum ApplicationType {
+  OD
+  LEAVE
+}
+
+enum ApplicationStatus {
+  MENTOR_PENDING
+  MENTOR_APPROVED
+  HOD_PENDING
+  APPROVED
+  EVIDENCE_PENDING
+  VERIFICATION_PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ApprovalAction {
+  APPROVED
+  REJECTED
+  SENT_BACK
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  NEEDS_MORE_EVIDENCE
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  users     User[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  password     String
+  registerNo   String?     @unique
+  role         Role
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  odApplications    ODApplication[]
+  leaveApplications LeaveApplication[]
+  approvals         ApprovalHistory[] @relation("Approver")
+  verifications     Verification[]
+  notifications     Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ODApplication {
+  id                String            @id @default(cuid())
+  applicationNumber String            @unique
+  studentId         String
+  eventName         String
+  eventType         String
+  eventLocation     String
+  fromDate          DateTime
+  toDate            DateTime
+  reason            String
+  eventLatitude     Float?
+  eventLongitude    Float?
+  status            ApplicationStatus @default(MENTOR_PENDING)
+
+  student      User                  @relation(fields: [studentId], references: [id])
+  approvals    ApprovalHistory[]
+  evidence     ParticipationEvidence[]
+  verification Verification?
+  documents    Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([status])
+}
+
+model LeaveApplication {
+  id                String            @id @default(cuid())
+  applicationNumber String            @unique
+  studentId         String
+  leaveType         String
+  fromDate          DateTime
+  toDate            DateTime
+  reason            String
+  status            ApplicationStatus @default(MENTOR_PENDING)
+
+  student   User              @relation(fields: [studentId], references: [id])
+  approvals ApprovalHistory[]
+  documents Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([status])
+}
+
+model ApprovalHistory {
+  id                 String          @id @default(cuid())
+  applicationType    ApplicationType
+  odApplicationId    String?
+  leaveApplicationId String?
+  approverId         String
+  action             ApprovalAction
+  remarks            String?
+
+  approver        User              @relation("Approver", fields: [approverId], references: [id])
+  odApplication   ODApplication?    @relation(fields: [odApplicationId], references: [id])
+  leaveApplication LeaveApplication? @relation(fields: [leaveApplicationId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([odApplicationId])
+  @@index([leaveApplicationId])
+}
+
+model ParticipationEvidence {
+  id              String        @id @default(cuid())
+  odApplicationId String
+  imageUrl        String
+  latitude        Float
+  longitude       Float
+  capturedAt      DateTime
+  description     String?
+
+  odApplication ODApplication @relation(fields: [odApplicationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Verification {
+  id                 String             @id @default(cuid())
+  odApplicationId    String             @unique
+  verifierId         String
+  status             VerificationStatus @default(PENDING)
+  distanceFromEvent  Float?
+  remarks            String?
+  verifiedAt         DateTime?
+
+  odApplication ODApplication @relation(fields: [odApplicationId], references: [id], onDelete: Cascade)
+  verifier      User           @relation(fields: [verifierId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id                String  @id @default(cuid())
+  name              String
+  url               String
+  type              String
+  odApplicationId   String?
+  leaveApplicationId String?
+
+  odApplication    ODApplication?    @relation(fields: [odApplicationId], references: [id])
+  leaveApplication LeaveApplication? @relation(fields: [leaveApplicationId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
