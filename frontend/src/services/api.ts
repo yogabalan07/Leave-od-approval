@@ -1,43 +1,20 @@
 import axios from "axios";
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: "http://localhost:5000/api",
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Attach JWT token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
 
-// Handle API responses
-api.interceptors.response.use(
-  (response) => response,
+  return config;
+});
 
-  (error) => {
-    if (error.response?.status === 401) {
-      console.warn("Unauthorized request");
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// Named export
-export { api };
-
-// Default export
 export default api;

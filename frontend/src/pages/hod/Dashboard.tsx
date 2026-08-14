@@ -1,77 +1,27 @@
-import { useEffect, useMemo, useState } from "react";
-import api from "../../services/api";
-import "./Dashboard.css";
+import { useEffect, useState } from "react";
+import { api } from "../../services/api";
 
 type Application = {
   id: string;
-  applicationNumber?: string;
+  applicationNumber: string;
   eventName?: string;
   eventType?: string;
   eventLocation?: string;
   leaveType?: string;
-  fromDate?: string;
-  toDate?: string;
-  reason?: string;
-  status?: string;
+  fromDate: string;
+  toDate: string;
+  reason: string;
+  status: string;
   student?: {
-    name?: string;
+    name: string;
+    email: string;
     registerNo?: string;
-    email?: string;
   };
 };
 
 type DashboardData = {
   od: Application[];
   leave: Application[];
-};
-
-const getInitials = (name?: string) => {
-  if (!name) return "H";
-  return name
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
-};
-
-const formatDate = (date?: string) => {
-  if (!date) return "-";
-
-  const d = new Date(date);
-
-  if (Number.isNaN(d.getTime())) return date;
-
-  return d.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
-
-const getStatusText = (status?: string) => {
-  if (!status) return "Pending";
-
-  return status
-    .replaceAll("_", " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
-const getStatusClass = (status?: string) => {
-  if (!status) return "pending";
-
-  const value = status.toLowerCase();
-
-  if (value.includes("approved") || value === "verified") {
-    return "approved";
-  }
-
-  if (value.includes("rejected")) {
-    return "rejected";
-  }
-
-  return "pending";
 };
 
 export default function HODDashboard() {
@@ -81,772 +31,1529 @@ export default function HODDashboard() {
   });
 
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"od" | "leave">("od");
-
   const [error, setError] = useState("");
 
-  /*
-   * IMPORTANT:
-   * Do NOT write:
-   *
-   * useEffect(load, []);
-   *
-   * if load returns a Promise.
-   *
-   * We use a normal synchronous useEffect
-   * and call the async function inside it.
-   */
-  const loadDashboard = async (isRefresh = false) => {
+  const loadDashboard = async () => {
     try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
+      setLoading(true);
       setError("");
 
       const response = await api.get("/hod/queue");
 
-      const result = response?.data;
+      console.log("HOD Queue:", response.data);
 
-      /*
-       * Supports both:
-       *
-       * { od: [], leave: [] }
-       *
-       * and
-       *
-       * { data: { od: [], leave: [] } }
-       */
-      const dashboard = result?.data ?? result ?? {};
+      const result = response.data?.data || response.data || {};
 
       setData({
-        od: Array.isArray(dashboard.od) ? dashboard.od : [],
-        leave: Array.isArray(dashboard.leave) ? dashboard.leave : [],
+        od: Array.isArray(result.od) ? result.od : [],
+        leave: Array.isArray(result.leave) ? result.leave : [],
       });
     } catch (err: any) {
       console.error("HOD dashboard error:", err);
 
       setError(
         err?.response?.data?.message ||
-          "Unable to load dashboard data."
+          "Unable to load HOD dashboard."
       );
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    const fetchDashboard = async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const response = await api.get("/hod/queue");
-
-        if (!mounted) return;
-
-        const result = response?.data;
-        const dashboard = result?.data ?? result ?? {};
-
-        setData({
-          od: Array.isArray(dashboard.od) ? dashboard.od : [],
-          leave: Array.isArray(dashboard.leave)
-            ? dashboard.leave
-            : [],
-        });
-      } catch (err: any) {
-        if (!mounted) return;
-
-        console.error("HOD dashboard error:", err);
-
-        setError(
-          err?.response?.data?.message ||
-            "Unable to load dashboard data."
-        );
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchDashboard();
-
-    return () => {
-      mounted = false;
-    };
+    loadDashboard();
   }, []);
 
-  const applications = useMemo(() => {
-    return activeTab === "od" ? data.od : data.leave;
-  }, [activeTab, data]);
+  const odCount = data.od.length;
+  const leaveCount = data.leave.length;
+  const totalPending = odCount + leaveCount;
 
-  const filteredApplications = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  const formatDate = (date?: string) => {
+    if (!date) return "-";
 
-    if (!query) return applications;
-
-    return applications.filter((application) => {
-      const studentName =
-        application.student?.name?.toLowerCase() || "";
-
-      const registerNo =
-        application.student?.registerNo?.toLowerCase() || "";
-
-      const applicationNumber =
-        application.applicationNumber?.toLowerCase() || "";
-
-      const eventName =
-        application.eventName?.toLowerCase() || "";
-
-      const location =
-        application.eventLocation?.toLowerCase() || "";
-
-      return (
-        studentName.includes(query) ||
-        registerNo.includes(query) ||
-        applicationNumber.includes(query) ||
-        eventName.includes(query) ||
-        location.includes(query)
-      );
+    return new Date(date).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
-  }, [applications, search]);
+  };
 
-  const totalPending = data.od.length + data.leave.length;
+  const statusClass = (status: string) => {
+    switch (status) {
+      case "HOD_PENDING":
+        return "status pending";
+
+      case "APPROVED":
+        return "status approved";
+
+      case "REJECTED":
+        return "status rejected";
+
+      case "MENTOR_PENDING":
+        return "status mentor";
+
+      case "MENTOR_APPROVED":
+        return "status mentorApproved";
+
+      default:
+        return "status";
+    }
+  };
 
   return (
     <div className="hod-page">
 
-      {/* SIDEBAR */}
-      <aside className="hod-sidebar">
+      {/* ================= HEADER ================= */}
 
-        <div className="sidebar-brand">
-          <div className="brand-logo">
-            <span>OD</span>
+      <header className="top-header">
+
+        <div>
+          <div className="brand-small">
+            SMART OD
           </div>
 
-          <div>
-            <h2>Smart OD</h2>
-            <p>Approval System</p>
-          </div>
+          <h1>HOD Dashboard</h1>
+
+          <p>
+            Final approval management for your department
+          </p>
         </div>
 
-        <nav className="sidebar-nav">
+        <div className="header-actions">
 
-          <div className="nav-section">
-            <span>MAIN MENU</span>
-          </div>
+          <button
+            className="refresh-btn"
+            onClick={loadDashboard}
+            disabled={loading}
+          >
+            ↻ {loading ? "Refreshing..." : "Refresh"}
+          </button>
 
-          <a className="nav-item active">
-            <span className="nav-icon">▦</span>
-            Dashboard
-          </a>
-
-          <a className="nav-item">
-            <span className="nav-icon">📄</span>
-            OD Applications
-            {data.od.length > 0 && (
-              <span className="nav-count">
-                {data.od.length}
-              </span>
-            )}
-          </a>
-
-          <a className="nav-item">
-            <span className="nav-icon">📝</span>
-            Leave Applications
-            {data.leave.length > 0 && (
-              <span className="nav-count">
-                {data.leave.length}
-              </span>
-            )}
-          </a>
-
-          <div className="nav-section">
-            <span>MANAGEMENT</span>
-          </div>
-
-          <a className="nav-item">
-            <span className="nav-icon">📊</span>
-            Analytics
-          </a>
-
-          <a className="nav-item">
-            <span className="nav-icon">📋</span>
-            Reports
-          </a>
-
-          <a className="nav-item">
-            <span className="nav-icon">⚙</span>
-            Settings
-          </a>
-
-        </nav>
-
-        <div className="sidebar-bottom">
-
-          <div className="help-card">
-            <div className="help-icon">?</div>
+          <div className="profile">
+            <div className="avatar">
+              H
+            </div>
 
             <div>
-              <strong>Need Help?</strong>
-              <p>Contact system admin</p>
+              <strong>HOD</strong>
+              <span>Department Head</span>
             </div>
           </div>
 
         </div>
-      </aside>
 
-      {/* MAIN */}
-      <main className="hod-main">
+      </header>
 
-        {/* TOP HEADER */}
-        <header className="hod-header">
+      {/* ================= MAIN ================= */}
 
-          <div>
-            <div className="breadcrumb">
-              Dashboard
-              <span>/</span>
-              HOD
-            </div>
-
-            <h1>Department Dashboard</h1>
-
-            <p>
-              Review and manage student OD & leave applications.
-            </p>
-          </div>
-
-          <div className="header-actions">
-
-            <button
-              className="notification-btn"
-              title="Notifications"
-            >
-              🔔
-              {totalPending > 0 && (
-                <span className="notification-dot" />
-              )}
-            </button>
-
-            <div className="profile">
-
-              <div className="profile-avatar">
-                H
-              </div>
-
-              <div className="profile-info">
-                <strong>Head of Department</strong>
-                <span>HOD</span>
-              </div>
-
-              <span className="profile-arrow">⌄</span>
-
-            </div>
-
-          </div>
-
-        </header>
+      <main className="dashboard-container">
 
         {/* ERROR */}
-        {error && (
-          <div className="error-banner">
-            <span>⚠️</span>
 
+        {error && (
+          <div className="error-box">
+            <span>⚠️</span>
             <div>
-              <strong>Unable to load data</strong>
+              <strong>Unable to load dashboard</strong>
               <p>{error}</p>
             </div>
 
-            <button onClick={() => loadDashboard(true)}>
+            <button onClick={loadDashboard}>
               Retry
             </button>
           </div>
         )}
 
-        {/* WELCOME CARD */}
-        <section className="welcome-card">
+        {/* ================= STAT CARDS ================= */}
 
-          <div className="welcome-content">
+        <section className="stats-grid">
 
-            <div className="welcome-tag">
-              ✨ HOD CONTROL CENTER
+          <div className="stat-card od-card">
+
+            <div className="stat-icon">
+              📄
             </div>
 
+            <div className="stat-content">
+              <span>OD Pending</span>
+
+              <strong>
+                {loading ? "..." : odCount}
+              </strong>
+
+              <small>
+                Applications waiting for approval
+              </small>
+            </div>
+
+          </div>
+
+
+          <div className="stat-card leave-card">
+
+            <div className="stat-icon">
+              📝
+            </div>
+
+            <div className="stat-content">
+              <span>Leave Pending</span>
+
+              <strong>
+                {loading ? "..." : leaveCount}
+              </strong>
+
+              <small>
+                Leave requests waiting for approval
+              </small>
+            </div>
+
+          </div>
+
+
+          <div className="stat-card total-card">
+
+            <div className="stat-icon">
+              ⏳
+            </div>
+
+            <div className="stat-content">
+              <span>Total Pending</span>
+
+              <strong>
+                {loading ? "..." : totalPending}
+              </strong>
+
+              <small>
+                Applications requiring your action
+              </small>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* ================= QUICK SUMMARY ================= */}
+
+        <section className="welcome-card">
+
+          <div className="welcome-icon">
+            🎓
+          </div>
+
+          <div>
+
             <h2>
-              Good evening, HOD 👋
+              Welcome to HOD Approval Center
             </h2>
 
             <p>
-              You have{" "}
-              <strong>{totalPending}</strong>{" "}
-              applications waiting for your attention.
+              Review applications approved by mentors and
+              make the final department-level decision.
             </p>
 
-            <button
-              className="primary-btn"
-              onClick={() =>
-                document
-                  .getElementById("applications")
-                  ?.scrollIntoView({
-                    behavior: "smooth",
-                  })
-              }
-            >
-              Review Applications
-              <span>→</span>
-            </button>
-
           </div>
 
-          <div className="welcome-illustration">
-            <div className="illustration-circle">
-              📋
-            </div>
-
-            <div className="floating-card card-one">
-              ✓
-            </div>
-
-            <div className="floating-card card-two">
-              📄
-            </div>
+          <div className="welcome-badge">
+            FINAL APPROVAL
           </div>
 
         </section>
 
-        {/* STATISTICS */}
-        <section className="stats-grid">
 
-          <div className="stat-card">
+        {/* ================= OD APPLICATIONS ================= */}
 
-            <div className="stat-top">
-              <div className="stat-icon blue">
-                📄
-              </div>
-
-              <span className="stat-label">
-                OD REQUESTS
-              </span>
-            </div>
-
-            <div className="stat-number">
-              {loading ? "—" : data.od.length}
-            </div>
-
-            <div className="stat-footer">
-              <span className="stat-positive">
-                ●
-              </span>
-              Waiting for HOD approval
-            </div>
-
-          </div>
-
-          <div className="stat-card">
-
-            <div className="stat-top">
-              <div className="stat-icon purple">
-                📝
-              </div>
-
-              <span className="stat-label">
-                LEAVE REQUESTS
-              </span>
-            </div>
-
-            <div className="stat-number">
-              {loading ? "—" : data.leave.length}
-            </div>
-
-            <div className="stat-footer">
-              <span className="stat-positive">
-                ●
-              </span>
-              Waiting for HOD approval
-            </div>
-
-          </div>
-
-          <div className="stat-card">
-
-            <div className="stat-top">
-              <div className="stat-icon orange">
-                ⏳
-              </div>
-
-              <span className="stat-label">
-                TOTAL PENDING
-              </span>
-            </div>
-
-            <div className="stat-number">
-              {loading ? "—" : totalPending}
-            </div>
-
-            <div className="stat-footer">
-              <span className="stat-warning">
-                ●
-              </span>
-              Requires your attention
-            </div>
-
-          </div>
-
-          <div className="stat-card">
-
-            <div className="stat-top">
-              <div className="stat-icon green">
-                ✓
-              </div>
-
-              <span className="stat-label">
-                SYSTEM STATUS
-              </span>
-            </div>
-
-            <div className="system-status">
-              <span className="online-dot" />
-              Online
-            </div>
-
-            <div className="stat-footer">
-              All systems operational
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* APPLICATIONS */}
-        <section
-          className="applications-section"
-          id="applications"
-        >
+        <section className="application-section">
 
           <div className="section-header">
 
             <div>
-              <h2>Applications</h2>
+              <h2>
+                OD Applications
+              </h2>
 
               <p>
-                Review applications submitted by students.
+                Applications waiting for HOD approval
               </p>
             </div>
 
-            <button
-              className="refresh-btn"
-              onClick={() => loadDashboard(true)}
-              disabled={refreshing}
-            >
-              <span className={refreshing ? "spin" : ""}>
-                ↻
-              </span>
-
-              {refreshing ? "Refreshing..." : "Refresh"}
-            </button>
-
-          </div>
-
-          {/* TABS + SEARCH */}
-          <div className="toolbar">
-
-            <div className="tabs">
-
-              <button
-                className={
-                  activeTab === "od"
-                    ? "tab active"
-                    : "tab"
-                }
-                onClick={() => {
-                  setActiveTab("od");
-                  setSearch("");
-                }}
-              >
-                📄 OD Applications
-
-                <span>
-                  {data.od.length}
-                </span>
-              </button>
-
-              <button
-                className={
-                  activeTab === "leave"
-                    ? "tab active"
-                    : "tab"
-                }
-                onClick={() => {
-                  setActiveTab("leave");
-                  setSearch("");
-                }}
-              >
-                📝 Leave Applications
-
-                <span>
-                  {data.leave.length}
-                </span>
-              </button>
-
-            </div>
-
-            <div className="search-box">
-
-              <span>⌕</span>
-
-              <input
-                type="text"
-                placeholder="Search student, register no..."
-                value={search}
-                onChange={(e) =>
-                  setSearch(e.target.value)
-                }
-              />
-
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                >
-                  ×
-                </button>
-              )}
-
+            <div className="count-badge">
+              {odCount}
             </div>
 
           </div>
 
-          {/* TABLE */}
-          <div className="table-wrapper">
 
-            {loading ? (
-              <div className="loading-state">
+          {loading ? (
 
-                <div className="loader" />
+            <div className="loading-card">
 
-                <h3>Loading applications...</h3>
+              <div className="spinner"></div>
 
-                <p>
-                  Fetching the latest requests.
-                </p>
+              <p>
+                Loading OD applications...
+              </p>
 
+            </div>
+
+          ) : data.od.length === 0 ? (
+
+            <div className="empty-card">
+
+              <div className="empty-icon">
+                📭
               </div>
-            ) : filteredApplications.length === 0 ? (
 
-              <div className="empty-state">
+              <h3>
+                No pending OD applications
+              </h3>
 
-                <div className="empty-icon">
-                  🎉
+              <p>
+                All OD applications have been processed.
+              </p>
+
+            </div>
+
+          ) : (
+
+            <div className="application-list">
+
+              {data.od.map((application) => (
+
+                <div
+                  className="application-card"
+                  key={application.id}
+                >
+
+                  {/* APPLICATION TOP */}
+
+                  <div className="application-top">
+
+                    <div className="application-number">
+                      #{application.applicationNumber}
+                    </div>
+
+                    <span className={statusClass(application.status)}>
+                      {application.status.replaceAll("_", " ")}
+                    </span>
+
+                  </div>
+
+
+                  {/* STUDENT */}
+
+                  <div className="student-row">
+
+                    <div className="student-avatar">
+                      {application.student?.name
+                        ?.charAt(0)
+                        ?.toUpperCase() || "S"}
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        {application.student?.name ||
+                          "Unknown Student"}
+                      </strong>
+
+                      <span>
+                        {application.student?.registerNo ||
+                          "Register number unavailable"}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* DETAILS */}
+
+                  <div className="details-grid">
+
+                    <div className="detail-item">
+
+                      <span className="detail-icon">
+                        🎯
+                      </span>
+
+                      <div>
+                        <small>Event</small>
+
+                        <strong>
+                          {application.eventName || "-"}
+                        </strong>
+                      </div>
+
+                    </div>
+
+
+                    <div className="detail-item">
+
+                      <span className="detail-icon">
+                        📍
+                      </span>
+
+                      <div>
+                        <small>Location</small>
+
+                        <strong>
+                          {application.eventLocation || "-"}
+                        </strong>
+                      </div>
+
+                    </div>
+
+
+                    <div className="detail-item">
+
+                      <span className="detail-icon">
+                        📅
+                      </span>
+
+                      <div>
+                        <small>From</small>
+
+                        <strong>
+                          {formatDate(application.fromDate)}
+                        </strong>
+                      </div>
+
+                    </div>
+
+
+                    <div className="detail-item">
+
+                      <span className="detail-icon">
+                        📅
+                      </span>
+
+                      <div>
+                        <small>To</small>
+
+                        <strong>
+                          {formatDate(application.toDate)}
+                        </strong>
+                      </div>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* REASON */}
+
+                  <div className="reason-box">
+
+                    <small>
+                      Reason
+                    </small>
+
+                    <p>
+                      {application.reason || "No reason provided"}
+                    </p>
+
+                  </div>
+
+
+                  {/* ACTIONS */}
+
+                  <div className="application-actions">
+
+                    <button
+                      className="view-btn"
+                      onClick={() =>
+                        alert(
+                          `Application: ${application.applicationNumber}`
+                        )
+                      }
+                    >
+                      👁 View Details
+                    </button>
+
+                    <button
+                      className="reject-btn"
+                      onClick={() =>
+                        alert("Reject API can be connected here.")
+                      }
+                    >
+                      ✕ Reject
+                    </button>
+
+                    <button
+                      className="approve-btn"
+                      onClick={() =>
+                        alert("Approve API can be connected here.")
+                      }
+                    >
+                      ✓ Approve
+                    </button>
+
+                  </div>
+
                 </div>
 
-                <h3>
-                  No applications found
-                </h3>
+              ))}
 
-                <p>
-                  {search
-                    ? "Try another search term."
-                    : `There are no pending ${
-                        activeTab === "od"
-                          ? "OD"
-                          : "leave"
-                      } applications.`}
-                </p>
+            </div>
 
-              </div>
-
-            ) : (
-
-              <table className="applications-table">
-
-                <thead>
-
-                  <tr>
-                    <th>APPLICATION</th>
-                    <th>STUDENT</th>
-
-                    {activeTab === "od" ? (
-                      <>
-                        <th>EVENT</th>
-                        <th>LOCATION</th>
-                      </>
-                    ) : (
-                      <th>LEAVE TYPE</th>
-                    )}
-
-                    <th>DATE</th>
-                    <th>STATUS</th>
-                    <th>ACTION</th>
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {filteredApplications.map(
-                    (application) => (
-
-                      <tr key={application.id}>
-
-                        <td>
-
-                          <div className="application-number">
-                            #
-                            {application.applicationNumber ||
-                              application.id.substring(
-                                0,
-                                8
-                              )}
-                          </div>
-
-                          <small>
-                            Submitted
-                          </small>
-
-                        </td>
-
-                        <td>
-
-                          <div className="student-cell">
-
-                            <div className="student-avatar">
-                              {getInitials(
-                                application.student?.name
-                              )}
-                            </div>
-
-                            <div>
-
-                              <strong>
-                                {application.student?.name ||
-                                  "Unknown Student"}
-                              </strong>
-
-                              <span>
-                                {application.student
-                                  ?.registerNo ||
-                                  "No register number"}
-                              </span>
-
-                            </div>
-
-                          </div>
-
-                        </td>
-
-                        {activeTab === "od" ? (
-                          <>
-                            <td>
-                              <strong>
-                                {application.eventName ||
-                                  "—"}
-                              </strong>
-
-                              <span className="table-subtext">
-                                {application.eventType ||
-                                  "Event"}
-                              </span>
-                            </td>
-
-                            <td>
-                              <span className="location-text">
-                                📍{" "}
-                                {application.eventLocation ||
-                                  "—"}
-                              </span>
-                            </td>
-                          </>
-                        ) : (
-                          <td>
-                            <span className="leave-type">
-                              {application.leaveType ||
-                                "General Leave"}
-                            </span>
-                          </td>
-                        )}
-
-                        <td>
-
-                          <div className="date-cell">
-
-                            <strong>
-                              {formatDate(
-                                application.fromDate
-                              )}
-                            </strong>
-
-                            <span>
-                              to{" "}
-                              {formatDate(
-                                application.toDate
-                              )}
-                            </span>
-
-                          </div>
-
-                        </td>
-
-                        <td>
-
-                          <span
-                            className={`status-badge ${getStatusClass(
-                              application.status
-                            )}`}
-                          >
-                            <span>●</span>
-
-                            {getStatusText(
-                              application.status
-                            )}
-                          </span>
-
-                        </td>
-
-                        <td>
-
-                          <button className="view-btn">
-                            Review
-                            <span>→</span>
-                          </button>
-
-                        </td>
-
-                      </tr>
-
-                    )
-                  )}
-
-                </tbody>
-
-              </table>
-
-            )}
-
-          </div>
+          )}
 
         </section>
 
-        {/* FOOTER */}
-        <footer className="dashboard-footer">
 
-          <span>
-            © 2026 Smart OD System
-          </span>
+        {/* ================= LEAVE APPLICATIONS ================= */}
 
-          <span>
-            Department Management Portal
-          </span>
+        <section className="application-section">
 
-        </footer>
+          <div className="section-header">
+
+            <div>
+              <h2>
+                Leave Applications
+              </h2>
+
+              <p>
+                Leave requests waiting for HOD approval
+              </p>
+            </div>
+
+            <div className="count-badge leave-count">
+              {leaveCount}
+            </div>
+
+          </div>
+
+
+          {loading ? (
+
+            <div className="loading-card">
+
+              <div className="spinner"></div>
+
+              <p>
+                Loading leave applications...
+              </p>
+
+            </div>
+
+          ) : data.leave.length === 0 ? (
+
+            <div className="empty-card">
+
+              <div className="empty-icon">
+                🌴
+              </div>
+
+              <h3>
+                No pending leave applications
+              </h3>
+
+              <p>
+                There are no leave requests waiting for approval.
+              </p>
+
+            </div>
+
+          ) : (
+
+            <div className="application-list">
+
+              {data.leave.map((application) => (
+
+                <div
+                  className="application-card"
+                  key={application.id}
+                >
+
+                  <div className="application-top">
+
+                    <div className="application-number">
+                      #{application.applicationNumber}
+                    </div>
+
+                    <span className={statusClass(application.status)}>
+                      {application.status.replaceAll("_", " ")}
+                    </span>
+
+                  </div>
+
+
+                  <div className="student-row">
+
+                    <div className="student-avatar leave-avatar">
+                      {application.student?.name
+                        ?.charAt(0)
+                        ?.toUpperCase() || "S"}
+                    </div>
+
+                    <div>
+
+                      <strong>
+                        {application.student?.name ||
+                          "Unknown Student"}
+                      </strong>
+
+                      <span>
+                        {application.student?.registerNo ||
+                          "Register number unavailable"}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  <div className="details-grid">
+
+                    <div className="detail-item">
+
+                      <span className="detail-icon">
+                        🏖️
+                      </span>
+
+                      <div>
+                        <small>Leave Type</small>
+
+                        <strong>
+                          {application.leaveType || "-"}
+                        </strong>
+                      </div>
+
+                    </div>
+
+
+                    <div className="detail-item">
+
+                      <span className="detail-icon">
+                        📅
+                      </span>
+
+                      <div>
+                        <small>From</small>
+
+                        <strong>
+                          {formatDate(application.fromDate)}
+                        </strong>
+                      </div>
+
+                    </div>
+
+
+                    <div className="detail-item">
+
+                      <span className="detail-icon">
+                        📅
+                      </span>
+
+                      <div>
+                        <small>To</small>
+
+                        <strong>
+                          {formatDate(application.toDate)}
+                        </strong>
+                      </div>
+
+                    </div>
+
+                  </div>
+
+
+                  <div className="reason-box">
+
+                    <small>
+                      Reason
+                    </small>
+
+                    <p>
+                      {application.reason || "No reason provided"}
+                    </p>
+
+                  </div>
+
+
+                  <div className="application-actions">
+
+                    <button
+                      className="view-btn"
+                      onClick={() =>
+                        alert(
+                          `Application: ${application.applicationNumber}`
+                        )
+                      }
+                    >
+                      👁 View Details
+                    </button>
+
+                    <button
+                      className="reject-btn"
+                      onClick={() =>
+                        alert("Reject API can be connected here.")
+                      }
+                    >
+                      ✕ Reject
+                    </button>
+
+                    <button
+                      className="approve-btn"
+                      onClick={() =>
+                        alert("Approve API can be connected here.")
+                      }
+                    >
+                      ✓ Approve
+                    </button>
+
+                  </div>
+
+                </div>
+
+              ))}
+
+            </div>
+
+          )}
+
+        </section>
 
       </main>
+
+
+      {/* ================= CSS ================= */}
+
+      <style>{`
+
+        * {
+          box-sizing: border-box;
+        }
+
+        body {
+          margin: 0;
+          font-family:
+            Inter,
+            ui-sans-serif,
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            sans-serif;
+
+          background: #f4f7fb;
+          color: #172033;
+        }
+
+        .hod-page {
+          min-height: 100vh;
+          background:
+            radial-gradient(
+              circle at top right,
+              rgba(79, 70, 229, 0.08),
+              transparent 30%
+            ),
+            #f4f7fb;
+        }
+
+
+        /* HEADER */
+
+        .top-header {
+          background: linear-gradient(
+            135deg,
+            #111827,
+            #1e293b
+          );
+
+          color: white;
+
+          padding: 32px 48px;
+
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          gap: 30px;
+
+          box-shadow:
+            0 10px 30px rgba(15, 23, 42, 0.15);
+        }
+
+        .brand-small {
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 3px;
+          color: #93c5fd;
+          margin-bottom: 8px;
+        }
+
+        .top-header h1 {
+          margin: 0;
+          font-size: 32px;
+          font-weight: 800;
+        }
+
+        .top-header p {
+          margin: 8px 0 0;
+          color: #cbd5e1;
+        }
+
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
+
+
+        .refresh-btn {
+          border: 1px solid rgba(255,255,255,0.2);
+          background: rgba(255,255,255,0.1);
+          color: white;
+
+          padding: 11px 18px;
+          border-radius: 10px;
+
+          cursor: pointer;
+          font-weight: 600;
+
+          transition: 0.2s;
+        }
+
+        .refresh-btn:hover {
+          background: rgba(255,255,255,0.2);
+        }
+
+
+        .profile {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          padding-left: 20px;
+          border-left: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .profile strong,
+        .profile span {
+          display: block;
+        }
+
+        .profile span {
+          font-size: 12px;
+          color: #94a3b8;
+          margin-top: 3px;
+        }
+
+        .avatar {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          background: linear-gradient(
+            135deg,
+            #6366f1,
+            #8b5cf6
+          );
+
+          font-weight: 800;
+        }
+
+
+        /* CONTAINER */
+
+        .dashboard-container {
+          max-width: 1450px;
+          margin: auto;
+
+          padding: 36px 48px 70px;
+        }
+
+
+        /* ERROR */
+
+        .error-box {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+
+          background: #fff1f2;
+          border: 1px solid #fecdd3;
+
+          padding: 16px 20px;
+          border-radius: 14px;
+
+          margin-bottom: 25px;
+
+          color: #9f1239;
+        }
+
+        .error-box p {
+          margin: 4px 0 0;
+        }
+
+        .error-box button {
+          margin-left: auto;
+
+          border: none;
+          background: #be123c;
+          color: white;
+
+          padding: 9px 15px;
+          border-radius: 8px;
+
+          cursor: pointer;
+        }
+
+
+        /* STAT CARDS */
+
+        .stats-grid {
+          display: grid;
+
+          grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+
+          gap: 22px;
+
+          margin-bottom: 28px;
+        }
+
+        .stat-card {
+          position: relative;
+
+          overflow: hidden;
+
+          display: flex;
+          align-items: center;
+
+          gap: 18px;
+
+          padding: 25px;
+
+          border-radius: 20px;
+
+          background: white;
+
+          border: 1px solid #e5e7eb;
+
+          box-shadow:
+            0 8px 25px rgba(15, 23, 42, 0.06);
+
+          transition:
+            transform 0.2s,
+            box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-3px);
+
+          box-shadow:
+            0 15px 35px rgba(15, 23, 42, 0.10);
+        }
+
+        .stat-icon {
+          width: 58px;
+          height: 58px;
+
+          flex-shrink: 0;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          border-radius: 16px;
+
+          font-size: 25px;
+        }
+
+        .od-card .stat-icon {
+          background: #eef2ff;
+        }
+
+        .leave-card .stat-icon {
+          background: #ecfdf5;
+        }
+
+        .total-card .stat-icon {
+          background: #fff7ed;
+        }
+
+        .stat-content span {
+          display: block;
+
+          color: #64748b;
+
+          font-size: 14px;
+          font-weight: 600;
+
+          margin-bottom: 4px;
+        }
+
+        .stat-content strong {
+          display: block;
+
+          font-size: 32px;
+
+          line-height: 1.1;
+
+          color: #111827;
+        }
+
+        .stat-content small {
+          display: block;
+
+          color: #94a3b8;
+
+          margin-top: 5px;
+        }
+
+
+        /* WELCOME */
+
+        .welcome-card {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+
+          background:
+            linear-gradient(
+              135deg,
+              #eef2ff,
+              #f8fafc
+            );
+
+          border: 1px solid #c7d2fe;
+
+          padding: 25px;
+
+          border-radius: 20px;
+
+          margin-bottom: 35px;
+        }
+
+        .welcome-icon {
+          width: 60px;
+          height: 60px;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          background: white;
+
+          border-radius: 16px;
+
+          font-size: 28px;
+
+          box-shadow:
+            0 5px 15px rgba(79,70,229,0.08);
+        }
+
+        .welcome-card h2 {
+          margin: 0;
+
+          font-size: 20px;
+        }
+
+        .welcome-card p {
+          margin: 5px 0 0;
+
+          color: #64748b;
+        }
+
+        .welcome-badge {
+          margin-left: auto;
+
+          padding: 8px 13px;
+
+          background: #4f46e5;
+          color: white;
+
+          border-radius: 999px;
+
+          font-size: 11px;
+          font-weight: 800;
+
+          letter-spacing: 0.8px;
+        }
+
+
+        /* SECTION */
+
+        .application-section {
+          margin-top: 35px;
+        }
+
+        .section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          margin-bottom: 18px;
+        }
+
+        .section-header h2 {
+          margin: 0;
+
+          font-size: 24px;
+        }
+
+        .section-header p {
+          margin: 5px 0 0;
+
+          color: #64748b;
+        }
+
+        .count-badge {
+          min-width: 40px;
+          height: 40px;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          background: #eef2ff;
+          color: #4f46e5;
+
+          border-radius: 12px;
+
+          font-weight: 800;
+        }
+
+        .leave-count {
+          background: #ecfdf5;
+          color: #059669;
+        }
+
+
+        /* APPLICATION LIST */
+
+        .application-list {
+          display: grid;
+
+          grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+          gap: 20px;
+        }
+
+
+        .application-card {
+          background: white;
+
+          border: 1px solid #e5e7eb;
+
+          border-radius: 18px;
+
+          padding: 22px;
+
+          box-shadow:
+            0 8px 25px rgba(15, 23, 42, 0.05);
+
+          transition:
+            transform 0.2s,
+            box-shadow 0.2s;
+        }
+
+        .application-card:hover {
+          transform: translateY(-3px);
+
+          box-shadow:
+            0 15px 35px rgba(15, 23, 42, 0.09);
+        }
+
+
+        .application-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          margin-bottom: 20px;
+        }
+
+        .application-number {
+          font-weight: 800;
+
+          color: #4f46e5;
+
+          font-size: 14px;
+        }
+
+
+        /* STATUS */
+
+        .status {
+          display: inline-flex;
+
+          padding: 6px 10px;
+
+          border-radius: 999px;
+
+          font-size: 11px;
+
+          font-weight: 800;
+
+          background: #f1f5f9;
+          color: #475569;
+        }
+
+        .status.pending {
+          background: #fff7ed;
+          color: #c2410c;
+        }
+
+        .status.approved {
+          background: #ecfdf5;
+          color: #047857;
+        }
+
+        .status.rejected {
+          background: #fff1f2;
+          color: #be123c;
+        }
+
+        .status.mentor {
+          background: #fef3c7;
+          color: #92400e;
+        }
+
+        .status.mentorApproved {
+          background: #dbeafe;
+          color: #1d4ed8;
+        }
+
+
+        /* STUDENT */
+
+        .student-row {
+          display: flex;
+
+          align-items: center;
+
+          gap: 12px;
+
+          margin-bottom: 20px;
+        }
+
+        .student-avatar {
+          width: 45px;
+          height: 45px;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          border-radius: 50%;
+
+          background: #eef2ff;
+
+          color: #4f46e5;
+
+          font-weight: 800;
+        }
+
+        .leave-avatar {
+          background: #ecfdf5;
+          color: #059669;
+        }
+
+        .student-row strong,
+        .student-row span {
+          display: block;
+        }
+
+        .student-row strong {
+          font-size: 15px;
+        }
+
+        .student-row span {
+          color: #94a3b8;
+
+          font-size: 12px;
+
+          margin-top: 3px;
+        }
+
+
+        /* DETAILS */
+
+        .details-grid {
+          display: grid;
+
+          grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+          gap: 12px;
+
+          margin-bottom: 16px;
+        }
+
+        .detail-item {
+          display: flex;
+
+          gap: 9px;
+
+          padding: 12px;
+
+          background: #f8fafc;
+
+          border-radius: 12px;
+        }
+
+        .detail-icon {
+          font-size: 17px;
+        }
+
+        .detail-item small,
+        .detail-item strong {
+          display: block;
+        }
+
+        .detail-item small {
+          color: #94a3b8;
+
+          font-size: 10px;
+
+          margin-bottom: 3px;
+        }
+
+        .detail-item strong {
+          font-size: 12px;
+
+          color: #334155;
+
+          word-break: break-word;
+        }
+
+
+        /* REASON */
+
+        .reason-box {
+          padding: 14px;
+
+          background: #f8fafc;
+
+          border-radius: 12px;
+
+          margin-bottom: 18px;
+        }
+
+        .reason-box small {
+          display: block;
+
+          color: #94a3b8;
+
+          font-size: 11px;
+
+          font-weight: 700;
+
+          margin-bottom: 5px;
+        }
+
+        .reason-box p {
+          margin: 0;
+
+          color: #475569;
+
+          font-size: 13px;
+
+          line-height: 1.5;
+        }
+
+
+        /* BUTTONS */
+
+        .application-actions {
+          display: flex;
+
+          gap: 9px;
+
+          padding-top: 15px;
+
+          border-top: 1px solid #eef2f7;
+        }
+
+        .application-actions button {
+          border: none;
+
+          padding: 10px 13px;
+
+          border-radius: 9px;
+
+          cursor: pointer;
+
+          font-size: 12px;
+
+          font-weight: 700;
+
+          transition: 0.2s;
+        }
+
+        .view-btn {
+          flex: 1;
+
+          background: #f1f5f9;
+
+          color: #334155;
+        }
+
+        .view-btn:hover {
+          background: #e2e8f0;
+        }
+
+        .reject-btn {
+          background: #fff1f2;
+
+          color: #be123c;
+        }
+
+        .reject-btn:hover {
+          background: #ffe4e6;
+        }
+
+        .approve-btn {
+          background: #4f46e5;
+
+          color: white;
+        }
+
+        .approve-btn:hover {
+          background: #4338ca;
+        }
+
+
+        /* EMPTY */
+
+        .empty-card,
+        .loading-card {
+          background: white;
+
+          border: 1px dashed #cbd5e1;
+
+          border-radius: 18px;
+
+          min-height: 220px;
+
+          display: flex;
+
+          flex-direction: column;
+
+          align-items: center;
+
+          justify-content: center;
+
+          text-align: center;
+
+          color: #64748b;
+        }
+
+        .empty-icon {
+          font-size: 40px;
+
+          margin-bottom: 8px;
+        }
+
+        .empty-card h3 {
+          margin: 5px 0;
+
+          color: #334155;
+        }
+
+        .empty-card p {
+          margin: 0;
+
+          font-size: 14px;
+        }
+
+
+        /* LOADING */
+
+        .spinner {
+          width: 35px;
+          height: 35px;
+
+          border: 4px solid #e2e8f0;
+
+          border-top-color: #4f46e5;
+
+          border-radius: 50%;
+
+          animation:
+            spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+
+        /* RESPONSIVE */
+
+        @media (max-width: 1000px) {
+
+          .stats-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .application-list {
+            grid-template-columns: 1fr;
+          }
+
+          .top-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .header-actions {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+        }
+
+
+        @media (max-width: 650px) {
+
+          .dashboard-container {
+            padding: 25px 15px 50px;
+          }
+
+          .top-header {
+            padding: 25px 20px;
+          }
+
+          .top-header h1 {
+            font-size: 25px;
+          }
+
+          .welcome-card {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .welcome-badge {
+            margin-left: 0;
+          }
+
+          .details-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .application-actions {
+            flex-wrap: wrap;
+          }
+
+          .view-btn {
+            flex-basis: 100%;
+          }
+
+        }
+
+      `}</style>
+
     </div>
   );
 }
