@@ -1,69 +1,101 @@
 import { useEffect, useState } from "react";
-import api from "../../services/api";
+import { api } from "../../services/api";
+import "../dashboard.css";
+
+interface Evidence {
+  id?: string;
+  imageUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  capturedAt?: string;
+  description?: string;
+}
 
 interface VerificationItem {
   id: string;
+  odApplicationId?: string;
   status?: string;
   distanceFromEvent?: number;
   remarks?: string;
 
   odApplication?: {
-    id: string;
-    applicationNumber: string;
-    eventName: string;
-    eventLocation: string;
+    applicationNumber?: string;
+    eventName?: string;
+    eventLocation?: string;
     eventLatitude?: number;
     eventLongitude?: number;
 
     student?: {
       name?: string;
       registerNo?: string;
-      email?: string;
     };
 
     evidence?: Evidence[];
   };
+
+  student?: {
+    name?: string;
+    registerNo?: string;
+  };
 }
 
-interface Evidence {
-  id: string;
-  imageUrl: string;
-  latitude: number;
-  longitude: number;
-  capturedAt: string;
-  description?: string;
+function formatStatus(status?: string) {
+  return (status || "PENDING")
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function getStatusClass(status?: string) {
+  if (status === "VERIFIED") {
+    return "status-verified";
+  }
+
+  if (status === "REJECTED") {
+    return "status-rejected";
+  }
+
+  if (status === "NEEDS_MORE_EVIDENCE") {
+    return "status-info";
+  }
+
+  return "status-pending";
+}
+
+function formatDate(date?: string) {
+  if (!date) return "-";
+
+  return new Date(date).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export default function VerifierDashboard() {
-  const [items, setItems] = useState<
-    VerificationItem[]
-  >([]);
-
+  const [items, setItems] = useState<VerificationItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  const [selected, setSelected] =
-    useState<VerificationItem | null>(null);
-
-  const [processing, setProcessing] =
-    useState(false);
-
-  const loadQueue = async () => {
+  const loadDashboard = async () => {
     try {
       setLoading(true);
-      setError("");
 
       const response = await api.get(
         "/verification/queue"
       );
 
-      setItems(response.data?.data ?? []);
-    } catch (error: any) {
-      console.error(error);
+      const result = response.data;
 
-      setError(
-        error?.response?.data?.message ||
-          "Unable to load verification queue."
+      setItems(
+        result?.data ||
+        result?.items ||
+        result ||
+        []
+      );
+    } catch (error) {
+      console.error(
+        "Verifier dashboard error:",
+        error
       );
     } finally {
       setLoading(false);
@@ -71,519 +103,504 @@ export default function VerifierDashboard() {
   };
 
   useEffect(() => {
-    loadQueue();
+    const fetchData = async () => {
+      await loadDashboard();
+    };
+
+    fetchData();
   }, []);
 
-  const verify = async () => {
-    if (!selected) return;
-
-    const remarks = window.prompt(
-      "Verification remarks:"
-    );
-
-    try {
-      setProcessing(true);
-
-      await api.post(
-        `/verification/${selected.id}/verify`,
-        {
-          remarks: remarks || "",
-        }
-      );
-
-      alert("Evidence verified successfully.");
-
-      setSelected(null);
-
-      await loadQueue();
-    } catch (error: any) {
-      console.error(error);
-
-      alert(
-        error?.response?.data?.message ||
-          "Verification failed."
-      );
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const reject = async () => {
-    if (!selected) return;
-
-    const remarks = window.prompt(
-      "Enter rejection reason:"
-    );
-
-    if (!remarks) {
-      alert("Rejection reason is required.");
-      return;
-    }
-
-    try {
-      setProcessing(true);
-
-      await api.post(
-        `/verification/${selected.id}/reject`,
-        {
-          remarks,
-        }
-      );
-
-      alert("Evidence rejected.");
-
-      setSelected(null);
-
-      await loadQueue();
-    } catch (error: any) {
-      console.error(error);
-
-      alert(
-        error?.response?.data?.message ||
-          "Rejection failed."
-      );
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const pending = items.filter(
+  const pendingCount = items.filter(
     (item) =>
       !item.status ||
       item.status === "PENDING"
-  );
+  ).length;
 
-  const verified = items.filter(
-    (item) =>
-      item.status === "VERIFIED"
-  );
-
-  const rejected = items.filter(
-    (item) =>
-      item.status === "REJECTED"
+  const evidenceCount = items.reduce(
+    (total, item) =>
+      total +
+      (item.odApplication?.evidence?.length || 0),
+    0
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="dashboard-page">
 
-      {/* Header */}
+      <div className="dashboard-layout">
 
-      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        {/* SIDEBAR */}
 
-        <div>
+        <aside className="dashboard-sidebar">
 
-          <h1 className="text-3xl font-bold text-slate-900">
-            Verification Dashboard
-          </h1>
+          <div className="brand">
 
-          <p className="mt-1 text-slate-500">
-            Verify student participation and geo-tagged evidence.
-          </p>
+            <div className="brand-logo">
+              🎓
+            </div>
 
-        </div>
+            <div className="brand-text">
+              <h2>Smart OD</h2>
+              <span>Approval System</span>
+            </div>
 
-        <button
-          onClick={loadQueue}
-          className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-        >
-          ↻ Refresh
-        </button>
-
-      </div>
-
-      {error && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-          {error}
-        </div>
-      )}
-
-      {/* Statistics */}
-
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-
-        <Stat
-          title="Pending"
-          value={pending.length}
-          icon="⏳"
-        />
-
-        <Stat
-          title="Verified"
-          value={verified.length}
-          icon="✓"
-        />
-
-        <Stat
-          title="Rejected"
-          value={rejected.length}
-          icon="✕"
-        />
-
-      </div>
-
-      {/* Queue */}
-
-      <div className="mt-8 rounded-2xl border bg-white shadow-sm">
-
-        <div className="border-b p-6">
-
-          <h2 className="text-xl font-bold">
-            Verification Queue
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Review participation photographs and location.
-          </p>
-
-        </div>
-
-        {loading ? (
-
-          <div className="p-10 text-center text-slate-500">
-            Loading verification queue...
           </div>
 
-        ) : pending.length === 0 ? (
-
-          <div className="p-10 text-center text-slate-500">
-            No evidence waiting for verification.
+          <div className="sidebar-label">
+            VERIFIER MENU
           </div>
 
-        ) : (
+          <nav className="sidebar-nav">
 
-          <div className="divide-y">
+            <button className="sidebar-link active">
+              <span className="sidebar-icon">
+                📊
+              </span>
 
-            {pending.map((item) => {
+              <span>
+                Dashboard
+              </span>
+            </button>
 
-              const application =
-                item.odApplication;
+            <button className="sidebar-link">
 
-              return (
-                <div
-                  key={item.id}
-                  className="p-6 hover:bg-slate-50"
-                >
+              <span className="sidebar-icon">
+                🔍
+              </span>
 
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <span>
+                Verification Queue
+              </span>
 
-                    <div className="flex-1">
+            </button>
 
-                      <div className="flex flex-wrap gap-3">
+            <button className="sidebar-link">
 
-                        <span className="font-bold text-blue-600">
-                          {application?.applicationNumber ||
-                            item.id}
-                        </span>
+              <span className="sidebar-icon">
+                📸
+              </span>
 
-                        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-                          PENDING VERIFICATION
-                        </span>
+              <span>
+                Evidence
+              </span>
 
-                      </div>
+            </button>
 
-                      <h3 className="mt-3 text-lg font-bold">
-                        {application?.student?.name ||
-                          "Student"}
-                      </h3>
+            <button className="sidebar-link">
 
-                      <p className="text-sm text-slate-500">
-                        Register No:{" "}
-                        {application?.student?.registerNo ||
-                          "-"}
-                      </p>
+              <span className="sidebar-icon">
+                🗺️
+              </span>
 
-                      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <span>
+                Geo Verification
+              </span>
 
-                        <Info
-                          label="Event"
-                          value={
-                            application?.eventName ||
-                            "-"
-                          }
-                        />
+            </button>
 
-                        <Info
-                          label="Location"
-                          value={
-                            application?.eventLocation ||
-                            "-"
-                          }
-                        />
+          </nav>
 
-                        <Info
-                          label="Evidence"
-                          value={`${application?.evidence?.length || 0} photo(s)`}
-                        />
+          <div className="sidebar-label">
+            SYSTEM
+          </div>
 
-                      </div>
+          <nav className="sidebar-nav">
 
-                    </div>
+            <button className="sidebar-link">
 
-                    <button
-                      onClick={() =>
-                        setSelected(item)
-                      }
-                      className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
-                    >
-                      🔍 Review Evidence
-                    </button>
+              <span className="sidebar-icon">
+                🔔
+              </span>
 
-                  </div>
+              <span>
+                Notifications
+              </span>
+
+            </button>
+
+            <button className="sidebar-link">
+
+              <span className="sidebar-icon">
+                ⚙️
+              </span>
+
+              <span>
+                Settings
+              </span>
+
+            </button>
+
+          </nav>
+
+        </aside>
+
+        {/* MAIN */}
+
+        <main className="dashboard-main">
+
+          <header className="topbar">
+
+            <div className="topbar-title">
+
+              <h1>
+                Verifier Dashboard
+              </h1>
+
+              <p>
+                Participation evidence verification
+              </p>
+
+            </div>
+
+            <div className="topbar-right">
+
+              <button className="notification-button">
+                🔔
+              </button>
+
+              <div className="user-chip">
+
+                <div className="user-avatar">
+                  V
+                </div>
+
+                <div className="user-info">
+
+                  <strong>
+                    Verifier
+                  </strong>
+
+                  <span>
+                    Verification Team
+                  </span>
 
                 </div>
-              );
-            })}
-
-          </div>
-
-        )}
-
-      </div>
-
-      {/* Evidence Modal */}
-
-      {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-
-          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-
-            {/* Modal Header */}
-
-            <div className="flex items-center justify-between border-b p-6">
-
-              <div>
-
-                <h2 className="text-xl font-bold">
-                  Evidence Verification
-                </h2>
-
-                <p className="text-sm text-slate-500">
-                  {selected.odApplication?.applicationNumber}
-                </p>
 
               </div>
 
-              <button
-                onClick={() => setSelected(null)}
-                className="text-2xl text-slate-400 hover:text-slate-700"
-              >
-                ×
-              </button>
-
             </div>
 
-            {/* Student Information */}
+          </header>
 
-            <div className="grid gap-4 p-6 md:grid-cols-2">
+          <div className="dashboard-content">
 
-              <Info
-                label="Student"
-                value={
-                  selected.odApplication?.student?.name ||
-                  "-"
-                }
-              />
+            {/* WELCOME */}
 
-              <Info
-                label="Register Number"
-                value={
-                  selected.odApplication?.student
-                    ?.registerNo || "-"
-                }
-              />
+            <section className="welcome-card">
 
-              <Info
-                label="Event"
-                value={
-                  selected.odApplication?.eventName ||
-                  "-"
-                }
-              />
+              <h2>
+                Evidence Verification Center 🔍
+              </h2>
 
-              <Info
-                label="Event Location"
-                value={
-                  selected.odApplication?.eventLocation ||
-                  "-"
-                }
-              />
+              <p>
+                Verify student participation evidence,
+                photographs and geographic information.
+              </p>
 
-            </div>
+            </section>
 
-            {/* Evidence */}
+            {/* STATS */}
 
-            <div className="border-t p-6">
+            <section className="stats-grid">
 
-              <h3 className="mb-4 text-lg font-bold">
-                Participation Evidence
-              </h3>
+              <div className="stat-card">
 
-              {selected.odApplication?.evidence
-                ?.length ? (
+                <div className="stat-top">
 
-                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="stat-icon icon-orange">
+                    ⏳
+                  </div>
 
-                  {selected.odApplication.evidence.map(
-                    (evidence) => (
+                </div>
 
-                      <div
-                        key={evidence.id}
-                        className="overflow-hidden rounded-2xl border bg-slate-50"
-                      >
+                <p>
+                  Pending Verification
+                </p>
 
-                        <img
-                          src={evidence.imageUrl}
-                          alt="Participation evidence"
-                          className="h-64 w-full object-cover"
-                        />
+                <div className="stat-number">
+                  {pendingCount}
+                </div>
 
-                        <div className="p-4">
+                <div className="stat-footer">
+                  Applications waiting for verification
+                </div>
 
-                          <p className="text-sm font-semibold">
-                            📍 Geo Location
-                          </p>
+              </div>
 
-                          <p className="mt-1 text-sm text-slate-600">
-                            Latitude:{" "}
-                            {evidence.latitude}
-                          </p>
+              <div className="stat-card">
 
-                          <p className="text-sm text-slate-600">
-                            Longitude:{" "}
-                            {evidence.longitude}
-                          </p>
+                <div className="stat-top">
 
-                          <p className="mt-2 text-sm text-slate-500">
-                            Captured:{" "}
-                            {new Date(
-                              evidence.capturedAt
-                            ).toLocaleString("en-IN")}
-                          </p>
+                  <div className="stat-icon icon-blue">
+                    📸
+                  </div>
 
-                          {evidence.description && (
-                            <p className="mt-2 text-sm">
-                              {evidence.description}
-                            </p>
-                          )}
+                </div>
 
-                        </div>
+                <p>
+                  Evidence Items
+                </p>
 
-                      </div>
+                <div className="stat-number">
+                  {evidenceCount}
+                </div>
 
-                    )
-                  )}
+                <div className="stat-footer">
+                  Uploaded participation evidence
+                </div>
+
+              </div>
+
+              <div className="stat-card">
+
+                <div className="stat-top">
+
+                  <div className="stat-icon icon-purple">
+                    📍
+                  </div>
+
+                </div>
+
+                <p>
+                  Geo Verification
+                </p>
+
+                <div className="stat-number">
+                  Active
+                </div>
+
+                <div className="stat-footer">
+                  Location verification enabled
+                </div>
+
+              </div>
+
+              <div className="stat-card">
+
+                <div className="stat-top">
+
+                  <div className="stat-icon icon-green">
+                    🛡️
+                  </div>
+
+                </div>
+
+                <p>
+                  Verification System
+                </p>
+
+                <div className="stat-number">
+                  Online
+                </div>
+
+                <div className="stat-footer">
+                  Evidence checking system operational
+                </div>
+
+              </div>
+
+            </section>
+
+            {/* QUEUE */}
+
+            <section className="dashboard-card">
+
+              <div className="card-header">
+
+                <div>
+
+                  <h3>
+                    Verification Queue
+                  </h3>
+
+                  <p>
+                    Review student participation evidence
+                  </p>
+
+                </div>
+
+                <button
+                  className="refresh-btn"
+                  onClick={loadDashboard}
+                >
+                  ↻ Refresh
+                </button>
+
+              </div>
+
+              {loading ? (
+
+                <div className="loading-box">
+
+                  <div className="loading-spinner"></div>
+
+                  Loading verification queue...
+
+                </div>
+
+              ) : items.length === 0 ? (
+
+                <div className="empty-box">
+
+                  <div className="empty-icon">
+                    🎉
+                  </div>
+
+                  <h4>
+                    Verification queue is empty
+                  </h4>
+
+                  <p>
+                    No student evidence is waiting for verification.
+                  </p>
 
                 </div>
 
               ) : (
 
-                <div className="rounded-xl bg-yellow-50 p-5 text-yellow-700">
-                  No participation evidence uploaded.
+                <div className="table-container">
+
+                  <table className="dashboard-table">
+
+                    <thead>
+
+                      <tr>
+                        <th>
+                          Application
+                        </th>
+
+                        <th>
+                          Student
+                        </th>
+
+                        <th>
+                          Event
+                        </th>
+
+                        <th>
+                          Evidence
+                        </th>
+
+                        <th>
+                          Location
+                        </th>
+
+                        <th>
+                          Date
+                        </th>
+
+                        <th>
+                          Status
+                        </th>
+                      </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                      {items.map((item) => {
+
+                        const application =
+                          item.odApplication;
+
+                        const student =
+                          application?.student ||
+                          item.student;
+
+                        const evidence =
+                          application?.evidence || [];
+
+                        return (
+
+                          <tr key={item.id}>
+
+                            <td>
+
+                              <span className="application-number">
+                                {application?.applicationNumber ||
+                                  item.odApplicationId ||
+                                  item.id}
+                              </span>
+
+                            </td>
+
+                            <td>
+
+                              <div className="student-name">
+                                {student?.name ||
+                                  "Student"}
+                              </div>
+
+                              <small>
+                                {student?.registerNo ||
+                                  "-"}
+                              </small>
+
+                            </td>
+
+                            <td>
+                              {application?.eventName ||
+                                "-"}
+                            </td>
+
+                            <td>
+
+                              <span className="status-badge status-info">
+                                📸 {evidence.length}
+                              </span>
+
+                            </td>
+
+                            <td>
+
+                              {evidence.length > 0
+                                ? "📍 Available"
+                                : "—"}
+
+                            </td>
+
+                            <td>
+
+                              {formatDate(
+                                evidence[0]?.capturedAt
+                              )}
+
+                            </td>
+
+                            <td>
+
+                              <span
+                                className={`status-badge ${getStatusClass(
+                                  item.status
+                                )}`}
+                              >
+                                {formatStatus(
+                                  item.status
+                                )}
+                              </span>
+
+                            </td>
+
+                          </tr>
+
+                        );
+
+                      })}
+
+                    </tbody>
+
+                  </table>
+
                 </div>
 
               )}
 
-            </div>
-
-            {/* Actions */}
-
-            <div className="flex flex-col gap-3 border-t p-6 md:flex-row md:justify-end">
-
-              <button
-                onClick={() => setSelected(null)}
-                className="rounded-xl border px-6 py-3 font-semibold"
-              >
-                Close
-              </button>
-
-              <button
-                disabled={processing}
-                onClick={reject}
-                className="rounded-xl bg-red-600 px-6 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-              >
-                ✕ Reject
-              </button>
-
-              <button
-                disabled={processing}
-                onClick={verify}
-                className="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-              >
-                {processing
-                  ? "Processing..."
-                  : "✓ Verify Evidence"}
-              </button>
-
-            </div>
+            </section>
 
           </div>
 
-        </div>
-      )}
-
-    </div>
-  );
-}
-
-
-// --------------------------------------------------
-
-function Stat({
-  title,
-  value,
-  icon,
-}: {
-  title: string;
-  value: number;
-  icon: string;
-}) {
-  return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
-
-      <div className="flex items-center justify-between">
-
-        <div>
-
-          <p className="text-sm text-slate-500">
-            {title}
-          </p>
-
-          <p className="mt-2 text-3xl font-bold">
-            {value}
-          </p>
-
-        </div>
-
-        <div className="text-3xl">
-          {icon}
-        </div>
+        </main>
 
       </div>
-
-    </div>
-  );
-}
-
-
-// --------------------------------------------------
-
-function Info({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div>
-
-      <p className="text-xs font-semibold uppercase text-slate-400">
-        {label}
-      </p>
-
-      <p className="mt-1 font-medium text-slate-700">
-        {value}
-      </p>
 
     </div>
   );
