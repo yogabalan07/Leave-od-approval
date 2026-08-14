@@ -1,413 +1,789 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "../../services/api";
+import "./Dashboard.css";
 
 interface Application {
   id: string;
-  applicationNumber: string;
+  applicationNumber?: string;
+
+  student?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    registerNo?: string;
+  };
+
+  studentName?: string;
+  registerNo?: string;
+
   eventName?: string;
   eventType?: string;
   eventLocation?: string;
+
   fromDate?: string;
   toDate?: string;
+
   reason?: string;
   status?: string;
-  student?: {
-    name: string;
-    registerNo?: string;
-    email?: string;
-  };
+
+  createdAt?: string;
 }
 
-export default function MentorDashboard() {
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+interface DashboardData {
+  od: Application[];
+  leave: Application[];
+}
 
-  const loadApplications = async () => {
+const MentorDashboard = () => {
+  const [data, setData] = useState<DashboardData>({
+    od: [],
+    leave: [],
+  });
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+
+  const loadDashboard = useCallback(async () => {
     try {
-      setLoading(true);
       setError("");
 
       const response = await api.get("/mentor/queue");
 
-      const data = response.data?.data ?? response.data ?? [];
+      const result = response.data;
 
-      setApplications(Array.isArray(data) ? data : []);
+      /*
+       * Your backend may return:
+       *
+       * { od: [], leave: [] }
+       *
+       * OR
+       *
+       * { data: { od: [], leave: [] } }
+       */
+
+      const dashboard = result?.data ?? result;
+
+      setData({
+        od: Array.isArray(dashboard?.od) ? dashboard.od : [],
+        leave: Array.isArray(dashboard?.leave) ? dashboard.leave : [],
+      });
     } catch (err: any) {
       console.error("Mentor dashboard error:", err);
 
       setError(
-        err.response?.data?.message ||
-          "Unable to load mentor applications."
+        err?.response?.data?.message ||
+          "Unable to load mentor dashboard."
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      await loadApplications();
-    };
-
-    fetchData();
   }, []);
 
-  const pending = applications.length;
+  /*
+   * IMPORTANT:
+   *
+   * Do NOT use:
+   *
+   * useEffect(loadDashboard, []);
+   *
+   * if loadDashboard is async.
+   *
+   * Instead we call it inside a normal synchronous useEffect.
+   */
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboard();
+  };
+
+  const getStudentName = (application: Application) => {
+    return (
+      application.student?.name ||
+      application.studentName ||
+      "Unknown Student"
+    );
+  };
+
+  const getRegisterNumber = (application: Application) => {
+    return (
+      application.student?.registerNo ||
+      application.registerNo ||
+      "No Register Number"
+    );
+  };
+
+  const getInitial = (application: Application) => {
+    const name = getStudentName(application);
+
+    return name.charAt(0).toUpperCase();
+  };
 
   const formatDate = (date?: string) => {
-    if (!date) return "-";
+    if (!date) return "Not specified";
 
-    return new Date(date).toLocaleDateString("en-IN", {
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return date;
+    }
+
+    return parsedDate.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
   };
 
+  const getStatusClass = (status?: string) => {
+    const value = status?.toUpperCase() || "";
+
+    if (value.includes("REJECT")) {
+      return "rejected";
+    }
+
+    if (
+      value.includes("APPROVED") ||
+      value === "APPROVED"
+    ) {
+      return "approved";
+    }
+
+    return "pending";
+  };
+
+  const formatStatus = (status?: string) => {
+    if (!status) return "PENDING";
+
+    return status
+      .replaceAll("_", " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const totalApplications =
+    data.od.length + data.leave.length;
+
+  const pendingApplications = [
+    ...data.od,
+    ...data.leave,
+  ].filter((application) => {
+    const status = application.status?.toUpperCase();
+
+    return (
+      !status ||
+      status === "MENTOR_PENDING" ||
+      status === "PENDING"
+    );
+  }).length;
+
+  const approvedApplications = [
+    ...data.od,
+    ...data.leave,
+  ].filter((application) =>
+    application.status
+      ?.toUpperCase()
+      .includes("APPROVED")
+  ).length;
+
+  const students = new Set(
+    [...data.od, ...data.leave]
+      .map((application) => application.student?.id)
+      .filter(Boolean)
+  ).size;
+
+  const allApplications = [
+    ...data.od.map((application) => ({
+      ...application,
+      applicationType: "OD",
+    })),
+
+    ...data.leave.map((application) => ({
+      ...application,
+      applicationType: "LEAVE",
+    })),
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white">
-        <div className="mx-auto max-w-7xl px-6 py-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-medium text-indigo-100">
-                Leave & OD Approval System
-              </p>
+    <div className="mentor-page">
 
-              <h1 className="mt-1 text-3xl font-bold">
-                Mentor Dashboard
-              </h1>
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
-              <p className="mt-2 text-indigo-100">
-                Review and approve student applications.
-              </p>
+      <header className="mentor-header">
+
+        <div className="mentor-header-left">
+
+          <div className="mentor-brand">
+            SMART OD SYSTEM
+          </div>
+
+          <h1>Mentor Dashboard</h1>
+
+          <p>
+            Review and manage student OD & leave applications
+          </p>
+
+        </div>
+
+        <div className="mentor-header-right">
+
+          <button
+            className="mentor-refresh-btn"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? "↻ Refreshing..." : "↻ Refresh"}
+          </button>
+
+          <div className="mentor-profile">
+
+            <div className="mentor-avatar">
+              M
             </div>
 
-            <button
-              onClick={loadApplications}
-              className="rounded-xl bg-white/15 px-5 py-3 font-semibold backdrop-blur transition hover:bg-white/25"
-            >
-              ↻ Refresh
-            </button>
+            <div className="mentor-profile-info">
+
+              <strong>Mentor</strong>
+
+              <span>
+                Application Reviewer
+              </span>
+
+            </div>
+
           </div>
+
         </div>
+
       </header>
 
-      {/* Main */}
-      <main className="mx-auto max-w-7xl px-6 py-8">
 
-        {/* Error */}
+      {/* =====================================================
+          MAIN
+      ===================================================== */}
+
+      <main className="mentor-container">
+
+        {/* ERROR */}
+
         {error && (
-          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
-            <strong>Error:</strong> {error}
+          <div className="mentor-error">
+
+            <div className="mentor-error-icon">
+              ⚠️
+            </div>
+
+            <div className="mentor-error-content">
+
+              <strong>
+                Dashboard Error
+              </strong>
+
+              <p>
+                {error}
+              </p>
+
+            </div>
+
+            <button onClick={handleRefresh}>
+              Retry
+            </button>
+
           </div>
         )}
 
-        {/* Statistics */}
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Pending Applications"
-            value={pending}
-            icon="📋"
-            gradient="from-indigo-500 to-purple-500"
-          />
 
-          <StatCard
-            title="OD Applications"
-            value={
-              applications.filter(
-                (item) =>
-                  item.eventName ||
-                  item.eventType
-              ).length
-            }
-            icon="🎓"
-            gradient="from-blue-500 to-cyan-500"
-          />
+        {/* =================================================
+            STATISTICS
+        ================================================= */}
 
-          <StatCard
-            title="Students"
-            value={
-              new Set(
-                applications
-                  .map((item) => item.student?.registerNo)
-                  .filter(Boolean)
-              ).size
-            }
-            icon="👨‍🎓"
-            gradient="from-emerald-500 to-teal-500"
-          />
+        <section className="mentor-stats">
 
-          <StatCard
-            title="Needs Review"
-            value={pending}
-            icon="⏳"
-            gradient="from-orange-500 to-amber-500"
-          />
-        </div>
+          {/* Pending */}
 
-        {/* Applications */}
-        <div className="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-6 py-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  Applications Waiting for Approval
-                </h2>
+          <div className="mentor-stat pending">
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Review student OD requests before sending them to HOD.
-                </p>
-              </div>
-
-              <span className="rounded-full bg-indigo-100 px-4 py-2 text-sm font-semibold text-indigo-700">
-                {pending} Pending
-              </span>
+            <div className="mentor-stat-icon">
+              ⏳
             </div>
+
+            <div className="mentor-stat-info">
+
+              <span>
+                Pending Review
+              </span>
+
+              <strong>
+                {pendingApplications}
+              </strong>
+
+              <small>
+                Awaiting your action
+              </small>
+
+            </div>
+
           </div>
 
-          {loading ? (
-            <div className="flex min-h-[300px] items-center justify-center">
-              <div className="text-center">
-                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
 
-                <p className="mt-4 text-sm text-slate-500">
-                  Loading applications...
-                </p>
-              </div>
+          {/* OD */}
+
+          <div className="mentor-stat od">
+
+            <div className="mentor-stat-icon">
+              📋
             </div>
-          ) : applications.length === 0 ? (
-            <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl">
+
+            <div className="mentor-stat-info">
+
+              <span>
+                OD Applications
+              </span>
+
+              <strong>
+                {data.od.length}
+              </strong>
+
+              <small>
+                On-duty requests
+              </small>
+
+            </div>
+
+          </div>
+
+
+          {/* Students */}
+
+          <div className="mentor-stat students">
+
+            <div className="mentor-stat-icon">
+              👨‍🎓
+            </div>
+
+            <div className="mentor-stat-info">
+
+              <span>
+                Students
+              </span>
+
+              <strong>
+                {students}
+              </strong>
+
+              <small>
+                Unique applicants
+              </small>
+
+            </div>
+
+          </div>
+
+
+          {/* Approved */}
+
+          <div className="mentor-stat review">
+
+            <div className="mentor-stat-icon">
+              ✓
+            </div>
+
+            <div className="mentor-stat-info">
+
+              <span>
+                Approved
+              </span>
+
+              <strong>
+                {approvedApplications}
+              </strong>
+
+              <small>
+                Applications approved
+              </small>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* =================================================
+            WELCOME CARD
+        ================================================= */}
+
+        <section className="mentor-welcome">
+
+          <div className="mentor-welcome-icon">
+            👋
+          </div>
+
+          <div className="mentor-welcome-content">
+
+            <h2>
+              Welcome, Mentor
+            </h2>
+
+            <p>
+              Review student applications carefully before
+              approving them. Approved applications will move
+              to the HOD verification stage.
+            </p>
+
+          </div>
+
+          <div className="mentor-welcome-badge">
+            MENTOR
+          </div>
+
+        </section>
+
+
+        {/* =================================================
+            APPLICATIONS
+        ================================================= */}
+
+        <section className="mentor-section">
+
+          <div className="mentor-section-header">
+
+            <div className="mentor-section-title">
+
+              <h2>
+                Applications
+              </h2>
+
+              <p>
+                Student OD and leave requests waiting for review
+              </p>
+
+            </div>
+
+            <div className="mentor-count">
+              {totalApplications}
+            </div>
+
+          </div>
+
+
+          {/* =================================================
+              LOADING
+          ================================================= */}
+
+          {loading ? (
+
+            <div className="mentor-loading">
+
+              <div className="mentor-spinner"></div>
+
+              <p>
+                Loading applications...
+              </p>
+
+            </div>
+
+          ) : allApplications.length === 0 ? (
+
+            /* =================================================
+               EMPTY
+            ================================================= */
+
+            <div className="mentor-empty">
+
+              <div className="mentor-empty-icon">
                 ✓
               </div>
 
-              <h3 className="mt-5 text-lg font-bold text-slate-900">
-                No pending applications
+              <h3>
+                No Applications
               </h3>
 
-              <p className="mt-2 max-w-md text-sm text-slate-500">
-                Great! There are currently no student applications waiting
-                for your approval.
+              <p>
+                There are currently no applications waiting
+                for your review.
               </p>
+
             </div>
+
           ) : (
-            <div className="divide-y divide-slate-100">
-              {applications.map((application) => (
-                <ApplicationCard
-                  key={application.id}
-                  application={application}
-                  onRefresh={loadApplications}
-                  formatDate={formatDate}
-                />
+
+            /* =================================================
+               APPLICATION LIST
+            ================================================= */
+
+            <div className="mentor-application-list">
+
+              {allApplications.map((application) => (
+
+                <div
+                  className="mentor-application-card"
+                  key={`${application.applicationType}-${application.id}`}
+                >
+
+                  {/* APPLICATION TOP */}
+
+                  <div className="mentor-application-top">
+
+                    <span className="mentor-application-number">
+
+                      {application.applicationNumber ||
+                        `APP-${application.id.slice(0, 8).toUpperCase()}`}
+
+                    </span>
+
+                    <span
+                      className={`mentor-status ${getStatusClass(
+                        application.status
+                      )}`}
+                    >
+                      {formatStatus(application.status)}
+                    </span>
+
+                  </div>
+
+
+                  {/* STUDENT */}
+
+                  <div className="mentor-student">
+
+                    <div className="mentor-student-avatar">
+
+                      {getInitial(application)}
+
+                    </div>
+
+                    <div className="mentor-student-info">
+
+                      <strong>
+                        {getStudentName(application)}
+                      </strong>
+
+                      <span>
+                        {getRegisterNumber(application)}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* DETAILS */}
+
+                  <div className="mentor-details">
+
+                    {/* TYPE */}
+
+                    <div className="mentor-detail">
+
+                      <div className="mentor-detail-icon">
+                        {application.applicationType === "OD"
+                          ? "🎓"
+                          : "🏠"}
+                      </div>
+
+                      <div className="mentor-detail-content">
+
+                        <small>
+                          Type
+                        </small>
+
+                        <strong>
+                          {application.applicationType === "OD"
+                            ? "On Duty"
+                            : "Leave"}
+                        </strong>
+
+                      </div>
+
+                    </div>
+
+
+                    {/* EVENT / LEAVE */}
+
+                    <div className="mentor-detail">
+
+                      <div className="mentor-detail-icon">
+                        📌
+                      </div>
+
+                      <div className="mentor-detail-content">
+
+                        <small>
+                          {application.applicationType === "OD"
+                            ? "Event"
+                            : "Leave Type"}
+                        </small>
+
+                        <strong>
+                          {application.eventName ||
+                            application.eventType ||
+                            "Leave Application"}
+                        </strong>
+
+                      </div>
+
+                    </div>
+
+
+                    {/* FROM */}
+
+                    <div className="mentor-detail">
+
+                      <div className="mentor-detail-icon">
+                        📅
+                      </div>
+
+                      <div className="mentor-detail-content">
+
+                        <small>
+                          From
+                        </small>
+
+                        <strong>
+                          {formatDate(
+                            application.fromDate
+                          )}
+                        </strong>
+
+                      </div>
+
+                    </div>
+
+
+                    {/* TO */}
+
+                    <div className="mentor-detail">
+
+                      <div className="mentor-detail-icon">
+                        📅
+                      </div>
+
+                      <div className="mentor-detail-content">
+
+                        <small>
+                          To
+                        </small>
+
+                        <strong>
+                          {formatDate(
+                            application.toDate
+                          )}
+                        </strong>
+
+                      </div>
+
+                    </div>
+
+
+                    {/* LOCATION */}
+
+                    {application.eventLocation && (
+                      <div className="mentor-detail">
+
+                        <div className="mentor-detail-icon">
+                          📍
+                        </div>
+
+                        <div className="mentor-detail-content">
+
+                          <small>
+                            Location
+                          </small>
+
+                          <strong>
+                            {application.eventLocation}
+                          </strong>
+
+                        </div>
+
+                      </div>
+                    )}
+
+                  </div>
+
+
+                  {/* REASON */}
+
+                  {application.reason && (
+
+                    <div className="mentor-reason">
+
+                      <span className="mentor-reason-label">
+                        Reason
+                      </span>
+
+                      <p>
+                        {application.reason}
+                      </p>
+
+                    </div>
+
+                  )}
+
+
+                  {/* ACTIONS */}
+
+                  <div className="mentor-actions">
+
+                    <button
+                      className="mentor-action mentor-view"
+                      onClick={() => {
+                        console.log(
+                          "View application:",
+                          application
+                        );
+                      }}
+                    >
+                      👁 View
+                    </button>
+
+                    <button
+                      className="mentor-action mentor-reject"
+                      onClick={() => {
+                        console.log(
+                          "Reject application:",
+                          application.id
+                        );
+                      }}
+                    >
+                      ✕ Reject
+                    </button>
+
+                    <button
+                      className="mentor-action mentor-approve"
+                      onClick={() => {
+                        console.log(
+                          "Approve application:",
+                          application.id
+                        );
+                      }}
+                    >
+                      ✓ Approve
+                    </button>
+
+                  </div>
+
+                </div>
+
               ))}
+
             </div>
+
           )}
-        </div>
+
+        </section>
+
       </main>
+
     </div>
   );
-}
+};
 
-function StatCard({
-  title,
-  value,
-  icon,
-  gradient,
-}: {
-  title: string;
-  value: number;
-  icon: string;
-  gradient: string;
-}) {
-  return (
-    <div className="group relative overflow-hidden rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition duration-300 hover:-translate-y-1 hover:shadow-lg">
-      <div
-        className={`absolute right-0 top-0 h-24 w-24 rounded-bl-full bg-gradient-to-br ${gradient} opacity-10`}
-      />
-
-      <div className="flex items-center justify-between">
-        <div
-          className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${gradient} text-xl shadow-lg`}
-        >
-          {icon}
-        </div>
-      </div>
-
-      <p className="mt-5 text-sm font-medium text-slate-500">
-        {title}
-      </p>
-
-      <p className="mt-1 text-3xl font-bold text-slate-900">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function ApplicationCard({
-  application,
-  onRefresh,
-  formatDate,
-}: {
-  application: Application;
-  onRefresh: () => void;
-  formatDate: (date?: string) => string;
-}) {
-  const [processing, setProcessing] = useState(false);
-
-  const approve = async () => {
-    try {
-      setProcessing(true);
-
-      await api.post(
-        `/mentor/applications/${application.id}/approve`
-      );
-
-      await onRefresh();
-    } catch (error: any) {
-      alert(
-        error.response?.data?.message ||
-          "Failed to approve application."
-      );
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const reject = async () => {
-    const remarks = window.prompt(
-      "Enter rejection reason:"
-    );
-
-    if (!remarks) return;
-
-    try {
-      setProcessing(true);
-
-      await api.post(
-        `/mentor/applications/${application.id}/reject`,
-        {
-          remarks,
-        }
-      );
-
-      await onRefresh();
-    } catch (error: any) {
-      alert(
-        error.response?.data?.message ||
-          "Failed to reject application."
-      );
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <div className="p-6 transition hover:bg-slate-50">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-
-        {/* Student */}
-        <div className="flex gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-xl font-bold text-white">
-            {application.student?.name?.charAt(0)?.toUpperCase() ||
-              "S"}
-          </div>
-
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-bold text-slate-900">
-                {application.student?.name || "Student"}
-              </h3>
-
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                Pending
-              </span>
-            </div>
-
-            <p className="mt-1 text-sm text-slate-500">
-              {application.student?.registerNo || "No register number"}
-            </p>
-
-            <p className="mt-1 text-xs text-slate-400">
-              Application #{application.applicationNumber}
-            </p>
-          </div>
-        </div>
-
-        {/* Details */}
-        <div className="grid gap-4 sm:grid-cols-3 lg:min-w-[500px]">
-          <Info
-            label="Event"
-            value={application.eventName || "OD Application"}
-          />
-
-          <Info
-            label="Location"
-            value={application.eventLocation || "-"}
-          />
-
-          <Info
-            label="Date"
-            value={`${formatDate(application.fromDate)} - ${formatDate(
-              application.toDate
-            )}`}
-          />
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3">
-          <button
-            disabled={processing}
-            onClick={reject}
-            className="rounded-xl border border-red-200 px-5 py-3 font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-          >
-            Reject
-          </button>
-
-          <button
-            disabled={processing}
-            onClick={approve}
-            className="rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-5 py-3 font-semibold text-white shadow-md transition hover:shadow-lg disabled:opacity-50"
-          >
-            {processing ? "Processing..." : "✓ Approve"}
-          </button>
-        </div>
-      </div>
-
-      {application.reason && (
-        <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Reason
-          </p>
-
-          <p className="mt-1 text-sm text-slate-600">
-            {application.reason}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Info({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-
-      <p className="mt-1 truncate text-sm font-medium text-slate-700">
-        {value}
-      </p>
-    </div>
-  );
-}
+export default MentorDashboard;

@@ -1,0 +1,1114 @@
+/* =========================================================
+   SMART OD SYSTEM - MENTOR DASHBOARD
+   ========================================================= */
+
+.mentor-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(99, 102, 241, 0.08),
+      transparent 30%
+    ),
+    #f5f7fb;
+
+  color: #172033;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.mentor-header {
+  background:
+    linear-gradient(
+      135deg,
+      #111827 0%,
+      #312e81 50%,
+      #4338ca 100%
+    );
+
+  color: white;
+
+  padding: 32px 48px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  gap: 30px;
+
+  box-shadow:
+    0 10px 35px rgba(15, 23, 42, 0.18);
+}
+
+.mentor-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.mentor-brand {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #c7d2fe;
+
+  margin-bottom: 8px;
+}
+
+.mentor-header h1 {
+  margin: 0;
+
+  font-size: 32px;
+  font-weight: 800;
+
+  letter-spacing: -0.5px;
+}
+
+.mentor-header p {
+  margin: 8px 0 0;
+
+  color: #cbd5e1;
+
+  font-size: 14px;
+}
+
+
+/* =========================================================
+   HEADER RIGHT
+   ========================================================= */
+
+.mentor-header-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.mentor-refresh-btn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+
+  background: rgba(255, 255, 255, 0.1);
+
+  color: white;
+
+  padding: 11px 18px;
+
+  border-radius: 10px;
+
+  cursor: pointer;
+
+  font-weight: 600;
+
+  transition: all 0.2s ease;
+
+  backdrop-filter: blur(8px);
+}
+
+.mentor-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+
+  transform: translateY(-1px);
+}
+
+.mentor-refresh-btn:disabled {
+  opacity: 0.6;
+
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   PROFILE
+   ========================================================= */
+
+.mentor-profile {
+  display: flex;
+  align-items: center;
+
+  gap: 11px;
+
+  padding-left: 20px;
+
+  border-left:
+    1px solid rgba(255, 255, 255, 0.18);
+}
+
+.mentor-avatar {
+  width: 44px;
+  height: 44px;
+
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    linear-gradient(
+      135deg,
+      #818cf8,
+      #6366f1
+    );
+
+  color: white;
+
+  font-weight: 800;
+
+  box-shadow:
+    0 5px 15px rgba(79, 70, 229, 0.35);
+}
+
+.mentor-profile-info strong,
+.mentor-profile-info span {
+  display: block;
+}
+
+.mentor-profile-info strong {
+  font-size: 14px;
+}
+
+.mentor-profile-info span {
+  margin-top: 3px;
+
+  color: #cbd5e1;
+
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   MAIN CONTAINER
+   ========================================================= */
+
+.mentor-container {
+  width: 100%;
+
+  max-width: 1450px;
+
+  margin: auto;
+
+  padding:
+    36px 48px
+    70px;
+}
+
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+.mentor-error {
+  display: flex;
+
+  align-items: center;
+
+  gap: 14px;
+
+  background: #fff1f2;
+
+  border:
+    1px solid #fecdd3;
+
+  color: #9f1239;
+
+  padding: 15px 18px;
+
+  border-radius: 14px;
+
+  margin-bottom: 25px;
+}
+
+.mentor-error-icon {
+  font-size: 22px;
+}
+
+.mentor-error-content strong {
+  display: block;
+}
+
+.mentor-error-content p {
+  margin: 3px 0 0;
+
+  font-size: 13px;
+}
+
+.mentor-error button {
+  margin-left: auto;
+
+  border: none;
+
+  background: #be123c;
+
+  color: white;
+
+  padding: 9px 15px;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  font-weight: 600;
+}
+
+
+/* =========================================================
+   STATISTICS
+   ========================================================= */
+
+.mentor-stats {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 20px;
+
+  margin-bottom: 28px;
+}
+
+.mentor-stat {
+  position: relative;
+
+  overflow: hidden;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 17px;
+
+  padding: 23px;
+
+  background: white;
+
+  border:
+    1px solid #e5e7eb;
+
+  border-radius: 20px;
+
+  box-shadow:
+    0 8px 25px rgba(15, 23, 42, 0.05);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.mentor-stat:hover {
+  transform: translateY(-4px);
+
+  box-shadow:
+    0 15px 35px rgba(15, 23, 42, 0.10);
+}
+
+.mentor-stat::after {
+  content: "";
+
+  position: absolute;
+
+  right: -35px;
+  top: -35px;
+
+  width: 110px;
+  height: 110px;
+
+  border-radius: 50%;
+
+  background: rgba(99, 102, 241, 0.07);
+}
+
+.mentor-stat-icon {
+  width: 56px;
+  height: 56px;
+
+  flex-shrink: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 16px;
+
+  font-size: 24px;
+}
+
+.mentor-stat.pending
+.mentor-stat-icon {
+  background: #eef2ff;
+}
+
+.mentor-stat.od
+.mentor-stat-icon {
+  background: #eff6ff;
+}
+
+.mentor-stat.students
+.mentor-stat-icon {
+  background: #ecfdf5;
+}
+
+.mentor-stat.review
+.mentor-stat-icon {
+  background: #fff7ed;
+}
+
+.mentor-stat-info {
+  position: relative;
+
+  z-index: 2;
+}
+
+.mentor-stat-info span {
+  display: block;
+
+  color: #64748b;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  margin-bottom: 4px;
+}
+
+.mentor-stat-info strong {
+  display: block;
+
+  color: #111827;
+
+  font-size: 30px;
+
+  line-height: 1.1;
+}
+
+.mentor-stat-info small {
+  display: block;
+
+  margin-top: 5px;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   WELCOME CARD
+   ========================================================= */
+
+.mentor-welcome {
+  display: flex;
+
+  align-items: center;
+
+  gap: 18px;
+
+  padding: 25px;
+
+  margin-bottom: 35px;
+
+  border:
+    1px solid #c7d2fe;
+
+  border-radius: 20px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #eef2ff,
+      #f8fafc
+    );
+}
+
+.mentor-welcome-icon {
+  width: 60px;
+  height: 60px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 16px;
+
+  background: white;
+
+  font-size: 28px;
+
+  box-shadow:
+    0 5px 15px rgba(79, 70, 229, 0.08);
+}
+
+.mentor-welcome-content {
+  flex: 1;
+}
+
+.mentor-welcome-content h2 {
+  margin: 0;
+
+  font-size: 20px;
+
+  color: #1e293b;
+}
+
+.mentor-welcome-content p {
+  margin: 5px 0 0;
+
+  color: #64748b;
+
+  font-size: 14px;
+}
+
+.mentor-welcome-badge {
+  padding: 8px 13px;
+
+  border-radius: 999px;
+
+  background: #4f46e5;
+
+  color: white;
+
+  font-size: 11px;
+
+  font-weight: 800;
+
+  letter-spacing: 0.8px;
+}
+
+
+/* =========================================================
+   APPLICATION SECTION
+   ========================================================= */
+
+.mentor-section {
+  margin-top: 35px;
+}
+
+.mentor-section-header {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  margin-bottom: 18px;
+}
+
+.mentor-section-title h2 {
+  margin: 0;
+
+  font-size: 24px;
+
+  color: #111827;
+}
+
+.mentor-section-title p {
+  margin: 5px 0 0;
+
+  color: #64748b;
+
+  font-size: 14px;
+}
+
+.mentor-count {
+  min-width: 42px;
+  height: 42px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  background: #eef2ff;
+
+  color: #4f46e5;
+
+  font-size: 15px;
+
+  font-weight: 800;
+}
+
+
+/* =========================================================
+   APPLICATION GRID
+   ========================================================= */
+
+.mentor-application-list {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 20px;
+}
+
+
+/* =========================================================
+   APPLICATION CARD
+   ========================================================= */
+
+.mentor-application-card {
+  background: white;
+
+  border:
+    1px solid #e5e7eb;
+
+  border-radius: 20px;
+
+  padding: 22px;
+
+  box-shadow:
+    0 8px 25px rgba(15, 23, 42, 0.05);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.mentor-application-card:hover {
+  transform: translateY(-4px);
+
+  border-color: #c7d2fe;
+
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.09);
+}
+
+
+/* =========================================================
+   APPLICATION HEADER
+   ========================================================= */
+
+.mentor-application-top {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  margin-bottom: 20px;
+}
+
+.mentor-application-number {
+  color: #4f46e5;
+
+  font-size: 13px;
+
+  font-weight: 800;
+}
+
+.mentor-status {
+  padding: 6px 10px;
+
+  border-radius: 999px;
+
+  font-size: 10px;
+
+  font-weight: 800;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.4px;
+}
+
+.mentor-status.pending {
+  background: #fff7ed;
+
+  color: #c2410c;
+}
+
+.mentor-status.approved {
+  background: #ecfdf5;
+
+  color: #047857;
+}
+
+.mentor-status.rejected {
+  background: #fff1f2;
+
+  color: #be123c;
+}
+
+
+/* =========================================================
+   STUDENT
+   ========================================================= */
+
+.mentor-student {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  margin-bottom: 20px;
+}
+
+.mentor-student-avatar {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background:
+    linear-gradient(
+      135deg,
+      #6366f1,
+      #8b5cf6
+    );
+
+  color: white;
+
+  font-weight: 800;
+
+  font-size: 17px;
+}
+
+.mentor-student-info strong,
+.mentor-student-info span {
+  display: block;
+}
+
+.mentor-student-info strong {
+  color: #1e293b;
+
+  font-size: 15px;
+}
+
+.mentor-student-info span {
+  margin-top: 3px;
+
+  color: #94a3b8;
+
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   DETAILS
+   ========================================================= */
+
+.mentor-details {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 12px;
+
+  margin-bottom: 16px;
+}
+
+.mentor-detail {
+  display: flex;
+
+  gap: 9px;
+
+  padding: 12px;
+
+  background: #f8fafc;
+
+  border-radius: 12px;
+
+  min-width: 0;
+}
+
+.mentor-detail-icon {
+  font-size: 17px;
+
+  flex-shrink: 0;
+}
+
+.mentor-detail-content {
+  min-width: 0;
+}
+
+.mentor-detail-content small {
+  display: block;
+
+  margin-bottom: 3px;
+
+  color: #94a3b8;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  text-transform: uppercase;
+}
+
+.mentor-detail-content strong {
+  display: block;
+
+  color: #334155;
+
+  font-size: 12px;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   REASON
+   ========================================================= */
+
+.mentor-reason {
+  padding: 14px;
+
+  margin-bottom: 18px;
+
+  background: #f8fafc;
+
+  border-radius: 12px;
+}
+
+.mentor-reason-label {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #94a3b8;
+
+  font-size: 10px;
+
+  font-weight: 800;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.5px;
+}
+
+.mentor-reason p {
+  margin: 0;
+
+  color: #475569;
+
+  font-size: 13px;
+
+  line-height: 1.55;
+}
+
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+
+.mentor-actions {
+  display: flex;
+
+  gap: 9px;
+
+  padding-top: 15px;
+
+  border-top:
+    1px solid #eef2f7;
+}
+
+.mentor-action {
+  border: none;
+
+  padding: 10px 14px;
+
+  border-radius: 9px;
+
+  cursor: pointer;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  transition: all 0.2s ease;
+}
+
+.mentor-view {
+  flex: 1;
+
+  background: #f1f5f9;
+
+  color: #334155;
+}
+
+.mentor-view:hover {
+  background: #e2e8f0;
+}
+
+.mentor-reject {
+  background: #fff1f2;
+
+  color: #be123c;
+}
+
+.mentor-reject:hover {
+  background: #ffe4e6;
+}
+
+.mentor-approve {
+  background:
+    linear-gradient(
+      135deg,
+      #4f46e5,
+      #6366f1
+    );
+
+  color: white;
+
+  box-shadow:
+    0 5px 12px rgba(79, 70, 229, 0.22);
+}
+
+.mentor-approve:hover {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 8px 18px rgba(79, 70, 229, 0.3);
+}
+
+.mentor-action:disabled {
+  opacity: 0.5;
+
+  cursor: not-allowed;
+
+  transform: none;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.mentor-empty {
+  min-height: 260px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  text-align: center;
+
+  background: white;
+
+  border:
+    1px dashed #cbd5e1;
+
+  border-radius: 20px;
+
+  padding: 30px;
+}
+
+.mentor-empty-icon {
+  width: 72px;
+  height: 72px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #ecfdf5;
+
+  font-size: 32px;
+
+  margin-bottom: 14px;
+}
+
+.mentor-empty h3 {
+  margin: 0;
+
+  color: #334155;
+
+  font-size: 18px;
+}
+
+.mentor-empty p {
+  margin: 7px 0 0;
+
+  color: #94a3b8;
+
+  font-size: 13px;
+}
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+.mentor-loading {
+  min-height: 260px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  background: white;
+
+  border-radius: 20px;
+
+  border:
+    1px solid #e5e7eb;
+}
+
+.mentor-spinner {
+  width: 38px;
+  height: 38px;
+
+  border:
+    4px solid #e0e7ff;
+
+  border-top-color: #4f46e5;
+
+  border-radius: 50%;
+
+  animation:
+    mentor-spin 0.8s linear infinite;
+}
+
+.mentor-loading p {
+  margin-top: 12px;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+@keyframes mentor-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE - TABLET
+   ========================================================= */
+
+@media (max-width: 1150px) {
+
+  .mentor-stats {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .mentor-application-list {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE - MOBILE
+   ========================================================= */
+
+@media (max-width: 750px) {
+
+  .mentor-header {
+    padding: 25px 20px;
+
+    flex-direction: column;
+
+    align-items: flex-start;
+  }
+
+  .mentor-header h1 {
+    font-size: 26px;
+  }
+
+  .mentor-header-right {
+    width: 100%;
+
+    justify-content: space-between;
+  }
+
+  .mentor-container {
+    padding:
+      25px 15px
+      50px;
+  }
+
+  .mentor-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .mentor-welcome {
+    flex-direction: column;
+
+    align-items: flex-start;
+  }
+
+  .mentor-welcome-badge {
+    margin-left: 0;
+  }
+
+  .mentor-details {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+  .mentor-header-right {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .mentor-refresh-btn {
+    width: 100%;
+  }
+
+  .mentor-profile {
+    border-left: none;
+
+    border-top:
+      1px solid rgba(255, 255, 255, 0.15);
+
+    padding-left: 0;
+
+    padding-top: 12px;
+  }
+
+  .mentor-actions {
+    flex-wrap: wrap;
+  }
+
+  .mentor-view {
+    flex-basis: 100%;
+  }
+
+  .mentor-reject,
+  .mentor-approve {
+    flex: 1;
+  }
+
+}
