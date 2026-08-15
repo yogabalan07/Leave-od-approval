@@ -16,7 +16,7 @@ export default function Login() {
     try {
       const { data } = await api.post("/auth/login", { email, password });
       login(data.token, data.user);
-      const routes: Record<string,string> = { STUDENT:"/student", MENTOR:"/mentor", HOD:"/hod", VERIFIER:"/verifier", ADMIN:"/admin" };
+      const routes: Record<string,string> = { STUDENT:"/student/dashboard", MENTOR:"/mentor/dashboard", HOD:"/hod/dashboard", VERIFIER:"/verifier/dashboard", ADMIN:"/admin/dashboard" };
       navigate(routes[data.user.role] || "/");
     } catch (err: any) {
       setError(err.response?.data?.message || "Login failed");

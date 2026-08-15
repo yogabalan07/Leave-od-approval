@@ -43,6 +43,29 @@ const MentorDashboard = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [selectedApp, setSelectedApp] = useState<{ id: string; type: string; action: "APPROVED" | "REJECTED" } | null>(null);
+  const [viewingApp, setViewingApp] = useState<Application & { applicationType?: string } | null>(null);
+  const [remarks, setRemarks] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleAction = async () => {
+    if (!selectedApp) return;
+    try {
+      setSubmitting(true);
+      const url = selectedApp.type === "OD" 
+        ? `/mentor/od/${selectedApp.id}` 
+        : `/mentor/leave/${selectedApp.id}`;
+      await api.patch(url, { action: selectedApp.action, remarks });
+      setSelectedApp(null);
+      setRemarks("");
+      await loadDashboard();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.response?.data?.message || "Failed to process application.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -734,36 +757,21 @@ const MentorDashboard = () => {
 
                     <button
                       className="mentor-action mentor-view"
-                      onClick={() => {
-                        console.log(
-                          "View application:",
-                          application
-                        );
-                      }}
+                      onClick={() => setViewingApp(application)}
                     >
                       👁 View
                     </button>
 
                     <button
                       className="mentor-action mentor-reject"
-                      onClick={() => {
-                        console.log(
-                          "Reject application:",
-                          application.id
-                        );
-                      }}
+                      onClick={() => setSelectedApp({ id: application.id, type: application.applicationType, action: "REJECTED" })}
                     >
                       ✕ Reject
                     </button>
 
                     <button
                       className="mentor-action mentor-approve"
-                      onClick={() => {
-                        console.log(
-                          "Approve application:",
-                          application.id
-                        );
-                      }}
+                      onClick={() => setSelectedApp({ id: application.id, type: application.applicationType, action: "APPROVED" })}
                     >
                       ✓ Approve
                     </button>
@@ -782,6 +790,181 @@ const MentorDashboard = () => {
 
       </main>
 
+      {/* ================= MODALS ================= */}
+      {selectedApp && (
+        <div className="modal-overlay">
+          <div className="modal-container">
+            <div className="modal-header">
+              <h3>{selectedApp.action === "APPROVED" ? "Approve Application" : "Reject Application"}</h3>
+              <button className="modal-close" onClick={() => setSelectedApp(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <label>Remarks / Feedback</label>
+              <textarea
+                className="modal-textarea"
+                rows={4}
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Enter remarks (optional)..."
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setSelectedApp(null)}>Cancel</button>
+              <button className="btn-submit" onClick={handleAction} disabled={submitting}>
+                {submitting ? "Submitting..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingApp && (
+        <div className="modal-overlay">
+          <div className="modal-container" style={{ maxWidth: "600px" }}>
+            <div className="modal-header">
+              <h3>Application Details</h3>
+              <button className="modal-close" onClick={() => setViewingApp(null)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ display: "grid", gap: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <small style={{ color: "#64748b", display: "block" }}>Student Name</small>
+                  <strong>{viewingApp.student?.name || viewingApp.studentName || "N/A"}</strong>
+                </div>
+                <div>
+                  <small style={{ color: "#64748b", display: "block" }}>Register No</small>
+                  <strong>{viewingApp.student?.registerNo || viewingApp.registerNo || "N/A"}</strong>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <small style={{ color: "#64748b", display: "block" }}>Type</small>
+                  <strong>{viewingApp.applicationType === "OD" ? "On Duty (OD)" : "Leave"}</strong>
+                </div>
+                <div>
+                  <small style={{ color: "#64748b", display: "block" }}>Status</small>
+                  <strong>{formatStatus(viewingApp.status)}</strong>
+                </div>
+              </div>
+              <div>
+                <small style={{ color: "#64748b", display: "block" }}>Event / Leave Type</small>
+                <strong>{viewingApp.eventName || viewingApp.eventType || viewingApp.leaveType || "N/A"}</strong>
+              </div>
+              {viewingApp.eventLocation && (
+                <div>
+                  <small style={{ color: "#64748b", display: "block" }}>Location</small>
+                  <strong>📍 {viewingApp.eventLocation}</strong>
+                </div>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <small style={{ color: "#64748b", display: "block" }}>From Date</small>
+                  <strong>{formatDate(viewingApp.fromDate)}</strong>
+                </div>
+                <div>
+                  <small style={{ color: "#64748b", display: "block" }}>To Date</small>
+                  <strong>{formatDate(viewingApp.toDate)}</strong>
+                </div>
+              </div>
+              <div>
+                <small style={{ color: "#64748b", display: "block" }}>Reason</small>
+                <p style={{ margin: "4px 0 0", color: "#334155", background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  {viewingApp.reason || "No reason specified."}
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setViewingApp(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline styles for modal overlays */}
+      <style>{`
+        .modal-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(15, 23, 42, 0.4);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+        }
+        .modal-container {
+          background: white;
+          border-radius: 16px;
+          width: 90%;
+          max-width: 500px;
+          padding: 24px;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+        .modal-header h3 {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 700;
+          color: #0f172a;
+        }
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 20px;
+          cursor: pointer;
+          color: #64748b;
+        }
+        .modal-body {
+          margin-bottom: 20px;
+        }
+        .modal-body label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          margin-bottom: 8px;
+          color: #334155;
+        }
+        .modal-textarea {
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          font-family: inherit;
+          font-size: 14px;
+          resize: vertical;
+        }
+        .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+        }
+        .btn-cancel {
+          padding: 8px 16px;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          background: white;
+          color: #475569;
+          cursor: pointer;
+          font-weight: 600;
+        }
+        .btn-submit {
+          padding: 8px 16px;
+          border: none;
+          border-radius: 8px;
+          background: #4f46e5;
+          color: white;
+          cursor: pointer;
+          font-weight: 600;
+        }
+        .btn-submit:disabled {
+          opacity: 0.6;
+        }
+      `}</style>
     </div>
   );
 };

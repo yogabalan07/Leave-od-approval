@@ -32,6 +32,29 @@ export default function HODDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedApp, setSelectedApp] = useState<{ id: string; type: "OD" | "LEAVE"; action: "APPROVED" | "REJECTED" } | null>(null);
+  const [remarks, setRemarks] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [viewingApp, setViewingApp] = useState<Application | null>(null);
+
+  const handleAction = async () => {
+    if (!selectedApp) return;
+    try {
+      setSubmitting(true);
+      const url = selectedApp.type === "OD" 
+        ? `/hod/od/${selectedApp.id}` 
+        : `/hod/leave/${selectedApp.id}`;
+      await api.patch(url, { action: selectedApp.action, remarks });
+      setSelectedApp(null);
+      setRemarks("");
+      await loadDashboard();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.response?.data?.message || "Failed to process application.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const loadDashboard = async () => {
     try {
@@ -101,52 +124,7 @@ export default function HODDashboard() {
   };
 
   return (
-    <div className="hod-page">
-
-      {/* ================= HEADER ================= */}
-
-      <header className="top-header">
-
-        <div>
-          <div className="brand-small">
-            SMART OD
-          </div>
-
-          <h1>HOD Dashboard</h1>
-
-          <p>
-            Final approval management for your department
-          </p>
-        </div>
-
-        <div className="header-actions">
-
-          <button
-            className="refresh-btn"
-            onClick={loadDashboard}
-            disabled={loading}
-          >
-            ↻ {loading ? "Refreshing..." : "Refresh"}
-          </button>
-
-          <div className="profile">
-            <div className="avatar">
-              H
-            </div>
-
-            <div>
-              <strong>HOD</strong>
-              <span>Department Head</span>
-            </div>
-          </div>
-
-        </div>
-
-      </header>
-
-      {/* ================= MAIN ================= */}
-
-      <main className="dashboard-container">
+    <div className="dashboard-content">
 
         {/* ERROR */}
 
