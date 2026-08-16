@@ -1,12 +1,22 @@
-import { Navigate } from "react-router-dom";
-import { ReactNode } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
-export default function ProtectedRoute({ children, roles }: { children: ReactNode; roles?: string[] }) {
+export default function ProtectedRoute() {
+  const location = useLocation();
+
   const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user") || "null");
 
-  if (!token || !user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
+  // User is not logged in
+  if (!token) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{
+          from: location.pathname,
+        }}
+      />
+    );
+  }
 
-  return <>{children}</>;
+  return <Outlet />;
 }
