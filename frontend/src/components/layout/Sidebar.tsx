@@ -1,307 +1,381 @@
-import React from "react";
 import {
   NavLink,
-  useLocation,
   useNavigate,
 } from "react-router-dom";
 
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
 interface User {
-  id?: string;
   name?: string;
-  email?: string;
   role?: string;
+  email?: string;
   registerNo?: string;
 }
 
-interface MenuItem {
-  label: string;
-  path: string;
-  icon: string;
-}
+export default function Sidebar({
+  isOpen = false,
+  onClose,
+}: SidebarProps) {
+  const navigate = useNavigate();
 
-const menus: Record<string, MenuItem[]> = {
-  STUDENT: [
-    {
-      label: "Dashboard",
-      path: "/student/dashboard",
-      icon: "⌂",
-    },
-    {
-      label: "Apply OD",
-      path: "/student/apply-od",
-      icon: "📝",
-    },
-    {
-      label: "Apply Leave",
-      path: "/student/apply-leave",
-      icon: "📅",
-    },
-    {
-      label: "My Applications",
-      path: "/student/applications",
-      icon: "📋",
-    },
-    {
-      label: "Profile",
-      path: "/student/profile",
-      icon: "👤",
-    },
-  ],
-
-  MENTOR: [
-    {
-      label: "Dashboard",
-      path: "/mentor/dashboard",
-      icon: "⌂",
-    },
-    {
-      label: "Pending Applications",
-      path: "/mentor/pending",
-      icon: "⏳",
-    },
-    {
-      label: "Approval History",
-      path: "/mentor/history",
-      icon: "✓",
-    },
-  ],
-
-  HOD: [
-    {
-      label: "Dashboard",
-      path: "/hod/dashboard",
-      icon: "⌂",
-    },
-    {
-      label: "Applications",
-      path: "/hod/applications",
-      icon: "📋",
-    },
-    {
-      label: "Analytics",
-      path: "/hod/analytics",
-      icon: "📊",
-    },
-    {
-      label: "Reports",
-      path: "/hod/reports",
-      icon: "📈",
-    },
-  ],
-
-  VERIFIER: [
-    {
-      label: "Dashboard",
-      path: "/verifier/dashboard",
-      icon: "⌂",
-    },
-    {
-      label: "Verification Queue",
-      path: "/verifier/queue",
-      icon: "🔍",
-    },
-  ],
-
-  ADMIN: [
-    {
-      label: "Dashboard",
-      path: "/admin/dashboard",
-      icon: "⌂",
-    },
-    {
-      label: "Users",
-      path: "/admin/users",
-      icon: "👥",
-    },
-    {
-      label: "Students",
-      path: "/admin/students",
-      icon: "🎓",
-    },
-    {
-      label: "Faculty",
-      path: "/admin/faculty",
-      icon: "👨‍🏫",
-    },
-    {
-      label: "Departments",
-      path: "/admin/departments",
-      icon: "🏢",
-    },
-    {
-      label: "Settings",
-      path: "/admin/settings",
-      icon: "⚙",
-    },
-  ],
-};
-
-function getUser(): User | null {
-  const storedUser = localStorage.getItem("user");
-
-  if (!storedUser) {
-    return null;
-  }
+  let user: User | null = null;
 
   try {
-    return JSON.parse(storedUser);
+    const storedUser = localStorage.getItem("user");
+
+    if (storedUser) {
+      user = JSON.parse(storedUser);
+    }
   } catch {
-    return null;
+    user = null;
   }
-}
 
-const Sidebar: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const role = user?.role?.toUpperCase();
 
-  const user = getUser();
+  const getDashboardPath = () => {
+    switch (role) {
+      case "STUDENT":
+        return "/student/dashboard";
 
-  const role = user?.role?.toUpperCase() || "STUDENT";
+      case "MENTOR":
+        return "/mentor/dashboard";
 
-  const menuItems = menus[role] || menus.STUDENT;
+      case "HOD":
+        return "/hod/dashboard";
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+      case "VERIFIER":
+        return "/verifier/dashboard";
 
-    navigate("/login", {
-      replace: true,
-    });
+      case "ADMIN":
+        return "/admin/dashboard";
+
+      default:
+        return "/login";
+    }
   };
 
-  const getInitial = () => {
-    if (!user?.name) {
-      return "U";
+  const closeMobileMenu = () => {
+    if (onClose) {
+      onClose();
     }
-
-    return user.name.charAt(0).toUpperCase();
   };
 
   return (
-    <aside className="sidebar">
+    <aside
+      className={`sidebar ${
+        isOpen ? "sidebar-open" : ""
+      }`}
+    >
 
-      {/* ================= LOGO ================= */}
+      {/* =================================================
+          LOGO
+      ================================================== */}
 
-      <div className="sidebar-logo">
+      <div className="sidebar-header">
 
-        <div className="sidebar-logo-icon">
+        <div
+          className="college-logo"
+          onClick={() => {
+            navigate(getDashboardPath());
+            closeMobileMenu();
+          }}
+        >
           🎓
         </div>
 
-        <div className="sidebar-logo-text">
-          <h2>Smart OD</h2>
-          <span>Approval System</span>
+        <div className="brand">
+
+          <h2>
+            Smart OD
+          </h2>
+
+          <span>
+            Approval System
+          </span>
+
         </div>
+
+        {/* Mobile close */}
+
+        <button
+          className="sidebar-close"
+          onClick={closeMobileMenu}
+        >
+          ×
+        </button>
 
       </div>
 
-      {/* ================= USER ================= */}
+      {/* =================================================
+          USER CARD
+      ================================================== */}
 
       <div className="sidebar-user">
 
         <div className="sidebar-avatar">
-          {getInitial()}
+          {user?.name
+            ? user.name.charAt(0).toUpperCase()
+            : "U"}
         </div>
 
-        <div className="sidebar-user-info">
+        <div>
 
           <strong>
             {user?.name || "User"}
           </strong>
 
           <span>
-            {role}
+            {role || "USER"}
           </span>
 
         </div>
 
       </div>
 
-      {/* ================= NAVIGATION ================= */}
+      {/* =================================================
+          NAVIGATION
+      ================================================== */}
 
-      <div className="sidebar-section-title">
-        MAIN MENU
-      </div>
+      <nav className="sidebar-nav">
 
-      <nav className="sidebar-navigation">
+        {/* ================= STUDENT ================= */}
 
-        {menuItems.map((item) => {
+        {role === "STUDENT" && (
+          <>
+            <NavItem
+              to="/student/dashboard"
+              icon="🏠"
+              label="Dashboard"
+              onClick={closeMobileMenu}
+            />
 
-          const isActive =
-            location.pathname === item.path ||
-            location.pathname.startsWith(
-              item.path + "/"
-            );
+            <NavItem
+              to="/student/apply-od"
+              icon="📝"
+              label="Apply OD"
+              onClick={closeMobileMenu}
+            />
 
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={
-                isActive
-                  ? "sidebar-link active"
-                  : "sidebar-link"
-              }
-            >
+            <NavItem
+              to="/student/apply-leave"
+              icon="📅"
+              label="Apply Leave"
+              onClick={closeMobileMenu}
+            />
 
-              <span className="sidebar-link-icon">
-                {item.icon}
-              </span>
+            <NavItem
+              to="/student/applications"
+              icon="📋"
+              label="My Applications"
+              onClick={closeMobileMenu}
+            />
 
-              <span className="sidebar-link-text">
-                {item.label}
-              </span>
+            <NavItem
+              to="/student/profile"
+              icon="👤"
+              label="Profile"
+              onClick={closeMobileMenu}
+            />
+          </>
+        )}
 
-              {isActive && (
-                <span className="sidebar-active-indicator" />
-              )}
+        {/* ================= MENTOR ================= */}
 
-            </NavLink>
-          );
-        })}
+        {role === "MENTOR" && (
+          <>
+            <NavItem
+              to="/mentor/dashboard"
+              icon="🏠"
+              label="Dashboard"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/mentor/pending"
+              icon="⏳"
+              label="Pending Applications"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/mentor/history"
+              icon="📜"
+              label="Approval History"
+              onClick={closeMobileMenu}
+            />
+          </>
+        )}
+
+        {/* ================= HOD ================= */}
+
+        {role === "HOD" && (
+          <>
+            <NavItem
+              to="/hod/dashboard"
+              icon="🏠"
+              label="Dashboard"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/hod/applications"
+              icon="📋"
+              label="Applications"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/hod/analytics"
+              icon="📊"
+              label="Analytics"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/hod/reports"
+              icon="📈"
+              label="Reports"
+              onClick={closeMobileMenu}
+            />
+          </>
+        )}
+
+        {/* ================= VERIFIER ================= */}
+
+        {role === "VERIFIER" && (
+          <>
+            <NavItem
+              to="/verifier/dashboard"
+              icon="🏠"
+              label="Dashboard"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/verifier/queue"
+              icon="🔍"
+              label="Verification Queue"
+              onClick={closeMobileMenu}
+            />
+          </>
+        )}
+
+        {/* ================= ADMIN ================= */}
+
+        {role === "ADMIN" && (
+          <>
+            <NavItem
+              to="/admin/dashboard"
+              icon="🏠"
+              label="Dashboard"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/admin/users"
+              icon="👥"
+              label="Users"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/admin/students"
+              icon="🎓"
+              label="Students"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/admin/faculty"
+              icon="👨‍🏫"
+              label="Faculty"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/admin/departments"
+              icon="🏢"
+              label="Departments"
+              onClick={closeMobileMenu}
+            />
+
+            <NavItem
+              to="/admin/settings"
+              icon="⚙️"
+              label="Settings"
+              onClick={closeMobileMenu}
+            />
+          </>
+        )}
 
       </nav>
 
-      {/* ================= BOTTOM ================= */}
+      {/* =================================================
+          SIDEBAR FOOTER
+      ================================================== */}
 
-      <div className="sidebar-bottom">
+      <div className="sidebar-footer">
 
-        <div className="sidebar-role-card">
+        <div className="system-status">
 
-          <div className="role-card-icon">
-            🛡️
-          </div>
+          <span className="status-dot" />
 
-          <div>
-            <strong>
-              {role}
-            </strong>
-
-            <span>
-              Account
-            </span>
-          </div>
+          <span>
+            System Online
+          </span>
 
         </div>
 
-        <button
-          type="button"
-          className="sidebar-logout"
-          onClick={handleLogout}
-        >
-
-          <span>
-            ⇥
-          </span>
-
-          Logout
-
-        </button>
+        <small>
+          Smart OD System
+        </small>
 
       </div>
 
     </aside>
   );
-};
+}
 
-export default Sidebar;
+
+/* =========================================================
+   NAV ITEM
+========================================================= */
+
+interface NavItemProps {
+  to: string;
+  icon: string;
+  label: string;
+  onClick?: () => void;
+}
+
+function NavItem({
+  to,
+  icon,
+  label,
+  onClick,
+}: NavItemProps) {
+  return (
+    <NavLink
+      to={to}
+      onClick={onClick}
+      className={({ isActive }) =>
+        `sidebar-nav-item ${
+          isActive ? "active" : ""
+        }`
+      }
+    >
+
+      <span className="nav-icon">
+        {icon}
+      </span>
+
+      <span className="nav-label">
+        {label}
+      </span>
+
+    </NavLink>
+  );
+}
