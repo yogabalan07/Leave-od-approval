@@ -18,29 +18,25 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Handle common API errors
+// Handle authentication errors
 api.interceptors.response.use(
   (response) => response,
-
   (error) => {
     if (error.response?.status === 401) {
-      console.warn("Unauthorized request");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
 
-      // Don't automatically redirect from here.
-      // Login.tsx can handle login errors itself.
+      // Don't redirect if already on login page
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
 
     return Promise.reject(error);
   }
 );
 
-// Named export
 export { api };
-
-// Default export
-export default api;
